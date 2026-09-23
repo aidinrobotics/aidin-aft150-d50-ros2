@@ -1,0 +1,9 @@
+<library path="aidin_aft150_d50_hardware">
+  <class name="aidin_aft150_d50_hardware/Aft150D50SensorInterface"
+         type="aidin_aft150_d50_hardware::Aft150D50SensorInterface"
+         base_class_type="hardware_interface::SensorInterface">
+    <description>
+      AIDIN AFT150-D50 six-axis force/torque sensor over SocketCAN.
+    </description>
+  </class>
+</library>

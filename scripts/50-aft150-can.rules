@@ -1,0 +1,17 @@
+# AFT150-D50 driver — automatic CAN interface setup.
+# install.sh puts this in /etc/udev/rules.d/.
+
+# A USB CAN adapter (PCAN, IXXAT and the like) appears as a netdev, so systemd brings it up.
+# SUBSYSTEMS=="usb" keeps this away from CAN controllers built into the board.
+ACTION=="add", SUBSYSTEM=="net", KERNEL=="can*", SUBSYSTEMS=="usb", \
+    TAG+="systemd", ENV{SYSTEMD_WANTS}+="aft-can@$name.service"
+
+# CANable and other slcan serial adapters appear as a tty, not a netdev. slcand attaches the tty
+# to the kernel's slcan line discipline, which is what turns it into an ordinary CAN interface
+# the driver can open. Without this the device is only a serial port and nothing can use it.
+SUBSYSTEM=="tty", ATTRS{idVendor}=="16d0", ATTRS{idProduct}=="117e", MODE="0660", GROUP="dialout", \
+    TAG+="systemd", ENV{SYSTEMD_WANTS}+="aft-slcan@%k.service"
+SUBSYSTEM=="tty", ATTRS{idVendor}=="ad50", ATTRS{idProduct}=="60c4", MODE="0660", GROUP="dialout", \
+    TAG+="systemd", ENV{SYSTEMD_WANTS}+="aft-slcan@%k.service"
+SUBSYSTEM=="tty", ATTRS{idVendor}=="1d50", ATTRS{idProduct}=="606f", MODE="0660", GROUP="dialout", \
+    TAG+="systemd", ENV{SYSTEMD_WANTS}+="aft-slcan@%k.service"

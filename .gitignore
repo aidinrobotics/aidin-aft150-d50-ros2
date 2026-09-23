@@ -1,0 +1,11 @@
+# The protocol source and the script that compiles it. They stay on the machine that builds the
+# archives; what a consumer needs is the archive in aidin_aft150_d50_driver/prebuilt/.
+/private/
+
+# Release tarballs. tools/make_release.sh writes them here.
+/dist/
+
+# colcon output, when someone builds from inside this directory.
+/build/
+/install/
+/log/

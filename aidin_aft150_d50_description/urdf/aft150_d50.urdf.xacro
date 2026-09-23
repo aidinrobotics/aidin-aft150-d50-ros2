@@ -1,0 +1,25 @@
+<?xml version="1.0"?>
+<!-- A standalone description holding one sensor, for bringing the driver up on its own.
+
+     A real robot includes aft150_d50.ros2_control.xacro instead and calls the macros from its
+     own description, so the sensor lands on the right link. -->
+<robot xmlns:xacro="http://www.ros.org/wiki/xacro" name="aft150_d50">
+
+  <xacro:arg name="name" default="aft150_d50"/>
+  <xacro:arg name="can_interface" default="can0"/>
+  <xacro:arg name="can_mode" default="fd_brs"/>
+  <xacro:arg name="data_type" default="float_combined"/>
+  <xacro:arg name="rate_hz" default="1000"/>
+
+  <xacro:include filename="$(find aidin_aft150_d50_description)/urdf/aft150_d50.ros2_control.xacro"/>
+
+  <link name="world"/>
+
+  <xacro:aft150_d50_link name="$(arg name)" parent="world"/>
+  <xacro:aft150_d50_ros2_control name="$(arg name)"
+                                 can_interface="$(arg can_interface)"
+                                 can_mode="$(arg can_mode)"
+                                 data_type="$(arg data_type)"
+                                 rate_hz="$(arg rate_hz)"/>
+
+</robot>
