@@ -1,6 +1,6 @@
 <div align="center">
 
-<a href="https://www.aidinrobotics.co.kr/"><img height="120" src="docs/assets/aidin_logo.png" alt="AIDIN AFT150-D50 — AIDIN Robotics"></a>
+<a href="https://www.aidinrobotics.co.kr/"><img height="56" src="docs/assets/aidin_logo.png" alt="AIDIN AFT150-D50 — AIDIN Robotics"></a>
 
 <h1>AIDIN AFT150-D50 ROS 2</h1>
 
