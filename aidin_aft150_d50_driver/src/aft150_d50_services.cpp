@@ -86,10 +86,7 @@ const std::vector<std::string> & can_mode_names()
 
 const std::vector<std::string> & data_type_names()
 {
-  static const std::vector<std::string> names = {
-    "int6", "int6_temp",
-    "int12_combined", "int12_combined_temp",
-    "float_combined", "float_combined_temp"};
+  static const std::vector<std::string> names = {"int6", "int12_combined", "float_combined"};
   return names;
 }
 
@@ -124,8 +121,7 @@ bool is_valid_set_id(int value)
 
 bool data_type_needs_fd(const std::string & value)
 {
-  static const std::vector<std::string> fd_only = {
-    "int12_combined", "int12_combined_temp", "float_combined", "float_combined_temp"};
+  static const std::vector<std::string> fd_only = {"int12_combined", "float_combined"};
   return std::find(fd_only.begin(), fd_only.end(), value) != fd_only.end();
 }
 

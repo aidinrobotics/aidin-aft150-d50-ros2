@@ -68,7 +68,7 @@ reports the command to run when the interface is missing or down.
 
 > [!IMPORTANT]
 > An slcan adapter carries classic CAN 2.0 only. Its frames hold eight bytes, so a sensor reached
-> through one must use an `int6` data type. The combined types need CAN FD.
+> through one must use the `int6` data type. The combined types need CAN FD.
 
 ## Running the driver
 
@@ -193,20 +193,18 @@ setting, edit the parameter file and launch again.
 | Value | Frames per sample | Needs CAN FD | Description |
 |---|---|---|---|
 | `int6` | 2 | no | Force and torque arrive in separate frames as scaled integers |
-| `int6_temp` | 2 | no | As `int6`, and the sensor appends its temperature |
 | `int12_combined` | 1 | yes | All six axes in one frame as scaled integers |
-| `int12_combined_temp` | 1 | yes | As `int12_combined`, and the sensor appends its temperature |
 | `float_combined` | 1 | yes | All six axes in one frame as 32-bit floats |
-| `float_combined_temp` | 1 | yes | As `float_combined`, and the sensor appends its temperature |
 
-The four combined types put all six axes in one frame, which does not fit a classic CAN frame. The
+The two combined types put all six axes in one frame, which does not fit a classic CAN frame. The
 driver rejects them unless `can_mode` is `fd` or `fd_brs`.
 
-A sample in the `int6` types needs both frames, so the driver discards a torque frame whose force
-frame was lost rather than pairing it with an older one.
+An `int6` sample needs both frames, so the driver discards a torque frame whose force frame was
+lost rather than pairing it with an older one.
 
 > [!NOTE]
-> The driver discards the temperature bytes, so a `_temp` type changes nothing it publishes.
+> The driver does not publish the sensor's temperature, so it does not offer the data types that
+> make the sensor append one.
 
 ### Changing the transmit ID
 
