@@ -25,19 +25,30 @@ AIDIN AFT150-D50 6축 힘·토크 센서를 SocketCAN으로 읽는 ROS 2 driver�
 | ROS 2 | Humble |
 | CAN interface | USB CAN-FD 어댑터(SocketCAN), nominal 1 Mbit/s, data 구간 5 Mbit/s |
 
-CANable 같은 slcan 시리얼 어댑터도 사용할 수 있으며, 제약은
-[Setting up the CAN interface](#setting-up-the-can-interface)에 있습니다.
+CANable도 사용할 수 있습니다. 펌웨어에 따라 연결 경로가 다르며,
+[Setting up the CAN interface](#setting-up-the-can-interface)에서 설명합니다.
 
 ## Installation
 
 ```bash
-sudo ./install.sh
+sudo apt install can-utils
 colcon build --packages-up-to aidin_aft150_d50_bringup
 ```
 
-`install.sh`는 장비를 준비합니다. 배포판에 없는 CAN 커널 드라이버를 빌드하고, 어댑터를 연결하면
-인터페이스가 자동으로 준비되도록 udev 규칙을 설치하며, 현재 사용자를 `dialout` 그룹에 추가합니다.
-그룹 권한이 적용되도록 한 번 로그아웃했다가 다시 로그인하십시오.
+`can-utils`에는 `slcan_up.sh`가 사용하는 `slcand`와 [Troubleshooting](#troubleshooting)에서 사용하는
+`candump`가 들어 있습니다.
+
+어댑터의 커널 드라이버가 있어야 합니다. 사용하는 어댑터의 드라이버를 확인합니다.
+
+```bash
+modinfo peak_usb | head -2       # PEAK PCAN-USB FD
+modinfo gs_usb   | head -2       # candleLight 펌웨어의 CANable
+```
+
+`filename` 줄이 나오면 드라이버가 있는 것입니다. `Module ... not found`가 나오면 커널에 드라이버가
+없는 것입니다. 기본 Ubuntu 커널이면 `sudo apt install linux-modules-extra-$(uname -r)`을 실행하고,
+직접 빌드한 커널이나 Jetson 같은 vendor 커널이면 `CONFIG_CAN_PEAK_USB` 또는 `CONFIG_CAN_GS_USB`를
+켜고 커널을 다시 빌드합니다. slcan 펌웨어의 CANable은 두 드라이버가 모두 필요 없습니다.
 
 driver 자체는 ROS 2 package이므로 `colcon`으로 빌드합니다.
 
@@ -52,23 +63,37 @@ driver 자체는 ROS 2 package이므로 `colcon`으로 빌드합니다.
 
 ## Setting up the CAN interface
 
-udev 규칙을 설치했다면 어댑터를 연결하는 것으로 충분합니다. 직접 준비할 때는 아래를 실행합니다.
+driver를 실행하기 전에 인터페이스를 준비합니다. 이 설정은 재부팅하거나 어댑터를 다시 연결하면
+사라지므로, 그때마다 다시 준비해야 합니다. 어댑터가 나타나는 형태에 맞는 스크립트를 실행합니다.
+
+| Adapter | Appears as | Script |
+|---|---|---|
+| PEAK PCAN-USB FD, candleLight 펌웨어의 CANable | `ip -br link show type can`의 `can0` | `can_up.sh` |
+| slcan 펌웨어의 CANable | `/dev/ttyACM0` | `slcan_up.sh`가 `slcan0`으로 연결합니다 |
 
 ```bash
-sudo scripts/can_up.sh can0        # USB 어댑터, CAN FD 1M/5M
-sudo scripts/slcan_up.sh ttyACM0   # CANable, slcan0 으로 나타납니다
+sudo scripts/can_up.sh can0        # can0 으로 나타나는 어댑터
+sudo scripts/slcan_up.sh ttyACM0   # slcan 펌웨어의 CANable, slcan0 으로 연결됩니다
 sudo scripts/can_up.sh vcan0       # 하드웨어 없이 사용하는 가상 CAN
 ```
 
-비트 타이밍은 센서와 일치해야 합니다. `can_up.sh`가 센서의 공장 설정값을 사용하며, 센서를 다르게
-설정했다면 `/etc/default/aft-can`에서 값을 바꿉니다.
+`can_up.sh`는 센서의 공장 설정인 CAN FD(nominal 1 Mbit/s, data 구간 5 Mbit/s)를 먼저 요청하고,
+어댑터가 거부하면 클래식 CAN 2.0으로 설정합니다. 5 Mbit/s를 낼 수 있는지는 어댑터와 펌웨어에 따라
+다르므로, 스크립트가 출력하는 줄을 확인하십시오.
+
+```text
+[OK] can0 is ready — CAN FD  nominal=1000000@0.875 sjw=10  data=5000000@0.875 dsjw=2
+```
+
+이 줄에 `CAN 2.0`이 표시되면 어댑터가 클래식 CAN만 받아들인 것입니다. 이때 센서는
+`can_mode: classic`과 `int6` 데이터 타입을 사용해야 합니다.
 
 driver는 이미 준비된 인터페이스를 열기만 합니다. 인터페이스를 직접 설정하지 않으며, 인터페이스가
 없거나 내려가 있으면 실행할 명령을 알려 줍니다.
 
 > [!IMPORTANT]
-> slcan 어댑터는 클래식 CAN 2.0만 전달합니다. 프레임이 8바이트까지이므로 이 경로로 연결한 센서는
-> `int6` 데이터 타입을 사용해야 합니다. combined 타입은 CAN FD가 필요합니다.
+> slcan 펌웨어의 CANable은 클래식 CAN 2.0만 전달합니다. 프레임이 8바이트까지이므로 이 경로로
+> 연결한 센서는 `int6` 데이터 타입을 사용해야 합니다. combined 타입은 CAN FD가 필요합니다.
 
 ## Running the driver
 
@@ -310,7 +335,7 @@ right_wrist_ft:
 
 | Message | 원인 | 조치 |
 |---|---|---|
-| `there is no interface called can0` | 어댑터가 연결되지 않았거나 커널 드라이버가 없습니다 | `ip -br link show type can`으로 확인하고, 드라이버가 없으면 `sudo ./install.sh`를 실행합니다 |
+| `there is no interface called can0` | 어댑터가 연결되지 않았거나 커널 드라이버가 없습니다 | `ip -br link show type can`으로 확인하고, [Installation](#installation)에 따라 드라이버를 확인합니다 |
 | `can0 is down` | 인터페이스는 있지만 준비되지 않았습니다 | `sudo scripts/can_up.sh can0` |
 | `can0 is not set up for CAN FD (MTU 16)` | `can_mode`는 FD를 요구하는데 인터페이스가 클래식으로 준비되어 있습니다 | message에 표시된 `ip link` 명령을 실행하거나 `can_mode`를 `classic`으로 바꿉니다 |
 | `another instance already holds can0` | 같은 인터페이스에서 다른 driver가 작동 중입니다 | 먼저 실행한 쪽을 종료하거나, 이 센서에 별도 인터페이스를 지정합니다 |
@@ -327,8 +352,3 @@ ros2 service call /right_wrist_ft/confirm_id std_srvs/srv/Trigger
 
 응답에 센서가 답한 ID가 들어 있습니다. 센서가 응답하지 않으면 `candump can0`으로 센서가 프레임을
 보내고 있는지 확인합니다.
-
-## Third-party software
-
-`scripts/drivers/`에 PEAK와 IXXAT 커널 드라이버 소스가 들어 있으며 둘 다 GPL-2.0입니다. 고지와
-변경 사항은 [THIRD_PARTY_NOTICES.md](THIRD_PARTY_NOTICES.md)에 있습니다.

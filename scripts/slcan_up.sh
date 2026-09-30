@@ -1,6 +1,5 @@
 #!/usr/bin/env bash
 # Attach an slcan serial adapter as a CAN interface, or detach it again.
-# aft-slcan@.service calls this; it installs as /usr/local/bin/aft-slcan-up and -down.
 #
 #   sudo scripts/slcan_up.sh ttyACM0          attach, giving slcan0
 #   sudo scripts/slcan_up.sh ttyACM0 down     detach
@@ -10,7 +9,6 @@
 set -u
 
 CAN_BITRATE=1000000
-[ -r /etc/default/aft-can ] && . /etc/default/aft-can
 
 TTY="${1:-}"
 ACTION="${2:-up}"
@@ -57,7 +55,7 @@ case "$CAN_BITRATE" in
     *) echo "[FAIL] slcan has no speed code for CAN_BITRATE=$CAN_BITRATE" >&2; exit 1 ;;
 esac
 
-# Already attached, for instance because udev fired twice.
+# Already attached, for instance by an earlier run.
 if ip link show "$IFACE" >/dev/null 2>&1; then
     ip link set "$IFACE" up 2>/dev/null || true
     echo "[OK] ${IFACE} was already attached"

@@ -39,8 +39,8 @@ echo "  architectures: ${SHIPPED[*]}"
 
 mkdir -p "${STAGE}/${NAME}"
 for item in aidin_aft150_d50_driver aidin_aft150_d50_hardware aidin_aft150_d50_description \
-            aidin_aft150_d50_bringup scripts docs install.sh \
-            README.md README.ko.md CHANGELOG.md THIRD_PARTY_NOTICES.md; do
+            aidin_aft150_d50_bringup scripts docs \
+            README.md README.ko.md CHANGELOG.md; do
   [ -e "${HERE}/${item}" ] || { echo "FAIL: ${item} is missing" >&2; exit 1; }
   cp -r "${HERE}/${item}" "${STAGE}/${NAME}/"
 done
@@ -67,5 +67,5 @@ echo
 ls -lh "${TARBALL}" | awk '{print "  " $5, $9}'
 echo
 echo "  unpack it, then:"
-echo "    sudo ./install.sh"
+echo "    sudo apt install can-utils"
 echo "    colcon build --packages-up-to aidin_aft150_d50_bringup"
