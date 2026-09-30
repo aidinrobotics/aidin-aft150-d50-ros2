@@ -21,7 +21,7 @@ struct Settings
   std::string can_mode = "fd_brs";
   std::string data_type = "float_combined";
   int rate_hz = 1000;
-  int set_id_can20 = 0x230;
+  int set_id_can20 = 0x430;
   int set_id_canfd = 0x330;
   std::string frame_id;
 };

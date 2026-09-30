@@ -40,22 +40,27 @@ parameters on both paths.
   sends a change only on a difference, so an unchanged parameter file puts no flash write in the
   boot path. When the sensor does not adopt the new ID, the driver warns and keeps reading on the
   ID the sensor reported instead of refusing to start.
+- **The sensor can share a CAN channel with an AIDIN Hand Gen2.** It uses the robot hand's bit
+  timing, and `set_id_can20` defaults to `0x430` rather than the factory `0x230`, because the
+  factory range `0x230`–`0x232` overlaps the tactile IDs of the left hand. The first launch
+  therefore moves a new sensor to `0x430` once. Keep `can_mode` at `fd_brs` on a shared channel,
+  because the robot hand runs CAN FD with the bitrate switch.
 - **Three services cover the actions that carry no value: `~/set_bias`, `~/confirm_id` and
   `~/restore_defaults`.** All three are `std_srvs/srv/Trigger`, so the driver defines no service
   types of its own and `rosidl` stays out of the build. Anything that carries a value is a
   parameter instead.
 - **The `int6`, `int12_combined` and `float_combined` data types and all four update rates are
   supported.** The two combined types need CAN FD, and the driver rejects them when `can_mode` is
-  `classic` rather than failing later on the wire. The sensor's with-temperature variants are left
-  out, because neither the wrench nor the state interfaces carry a temperature, so asking for one
-  would only lengthen every frame.
+  `classic` rather than failing later on the wire.
 - **One parameter file describes any number of sensors.** Each top-level block is one sensor and
   the key is its node name, so adding a sensor means adding a block. Both launch files read the
   same file, and neither imposes a fixed left and right.
 - **`install.sh` prepares the machine.** It builds the PCAN and IXXAT kernel drivers when the
   distribution does not ship them, installs a udev rule that sets an interface up when an adapter
   is plugged in, and attaches an slcan serial adapter through `slcand` so a CANable appears as an
-  ordinary CAN interface.
+  ordinary CAN interface. The interface comes up at the timing the AIDIN Hand Gen2 uses, 1 Mbit/s
+  nominal and 5 Mbit/s data phase with both sample points at 87.5%, so one set of bring-up steps
+  covers both devices.
 - **The driver refuses to open an interface another instance already holds.** Starting the
   standalone node and the `ros2_control` component on the same sensor would interleave their
   commands, and the second one now fails to start with a message that says so.

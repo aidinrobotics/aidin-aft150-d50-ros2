@@ -5,7 +5,7 @@
 <h1>AIDIN AFT150-D50 ROS 2</h1>
 
 A ROS 2 driver for the AIDIN AFT150-D50 six-axis force/torque sensor over SocketCAN. It supports
-every data type and update rate the sensor offers, and it publishes force in newtons and torque in
+every update rate the sensor offers, and it publishes force in newtons and torque in
 newton-metres. Run it as a standalone node, or as a `ros2_control` sensor interface that joins an
 existing robot's resource manager.
 
@@ -23,7 +23,7 @@ We verify that the driver builds and runs on the configuration below.
 |---|---|
 | Operating System | Ubuntu 22.04 |
 | ROS 2 | Humble |
-| CAN interface | USB CAN-FD adapter (SocketCAN), 1 Mbit/s nominal, 4 Mbit/s data phase |
+| CAN interface | USB CAN-FD adapter (SocketCAN), 1 Mbit/s nominal, 5 Mbit/s data phase |
 
 An slcan serial adapter such as a CANable works as well, with the limits described in
 [Setting up the CAN interface](#setting-up-the-can-interface).
@@ -55,7 +55,7 @@ All four packages share one version number and are released together.
 With the udev rule installed, plugging an adapter in is enough. To set an interface up by hand:
 
 ```bash
-sudo scripts/can_up.sh can0        # USB adapter, CAN FD at 1M/4M
+sudo scripts/can_up.sh can0        # USB adapter, CAN FD at 1M/5M
 sudo scripts/slcan_up.sh ttyACM0   # CANable, which appears as slcan0
 sudo scripts/can_up.sh vcan0       # virtual CAN, with no hardware
 ```
@@ -148,7 +148,7 @@ right_wrist_ft:
     can_mode:      fd_brs
     data_type:     float_combined
     rate_hz:       1000
-    set_id_can20:  0x230
+    set_id_can20:  0x430
     set_id_canfd:  0x330
 
 left_wrist_ft:
@@ -157,7 +157,7 @@ left_wrist_ft:
     can_mode:      fd_brs
     data_type:     float_combined
     rate_hz:       1000
-    set_id_can20:  0x230
+    set_id_can20:  0x430
     set_id_canfd:  0x330
 ```
 
@@ -170,9 +170,9 @@ and what they must not.
 |---|---|---|---|
 | `can_interface` | `string` | `can0` | Name of the SocketCAN interface to open, as `ip link` lists it. The interface must already be up |
 | `can_mode` | `string` | `fd_brs` | Frame format the driver sends and expects: `classic`, `fd` or `fd_brs`. `fd_brs` adds the bitrate switch, which is what reaches 1 kHz |
-| `data_type` | `string` | `float_combined` | What the sensor transmits. One of the six values in the table below |
+| `data_type` | `string` | `float_combined` | What the sensor transmits. One of the three values in the table below |
 | `rate_hz` | `int` | `1000` | How often the sensor transmits a sample, in Hz: `100`, `250`, `500` or `1000` |
-| `set_id_can20` | `int` | `0x230` | CAN 2.0 ID the sensor transmits on, `0x000`–`0x7FF`. See [Changing the transmit ID](#changing-the-transmit-id) |
+| `set_id_can20` | `int` | `0x430` | CAN 2.0 ID the sensor transmits on, `0x000`–`0x7FF`. See [Changing the transmit ID](#changing-the-transmit-id) |
 | `set_id_canfd` | `int` | `0x330` | CAN FD ID the sensor transmits on, `0x000`–`0x7FF` |
 | `frame_id` | `string` | `<node name>_link` | `header.frame_id` of the published wrench. Set it to the URDF link the sensor is mounted on |
 
@@ -202,16 +202,17 @@ driver rejects them unless `can_mode` is `fd` or `fd_brs`.
 An `int6` sample needs both frames, so the driver discards a torque frame whose force frame was
 lost rather than pairing it with an older one.
 
-> [!NOTE]
-> The driver does not publish the sensor's temperature, so it does not offer the data types that
-> make the sensor append one.
-
 ### Changing the transmit ID
 
 `set_id_can20` and `set_id_canfd` are the ID the sensor should use, not a report of what it uses
 now. At startup the driver asks the sensor for its current IDs and sends a change only when they
-differ, so launching with an unchanged file writes nothing to the sensor. The sensor keeps the
-value in non-volatile memory, so it survives a power cycle.
+differ. The sensor keeps the value in non-volatile memory, so it survives a power cycle, and
+launching again with an unchanged file writes nothing to the sensor.
+
+A sensor leaves the factory transmitting CAN 2.0 on `0x230`, which overlaps the IDs of an AIDIN
+Hand Gen2 (see [Sharing a channel with the AIDIN Hand Gen2](#sharing-a-channel-with-the-aidin-hand-gen2)).
+The first launch with the default file therefore moves it to `0x430`. `~/restore_defaults` returns
+it to `0x230`, and the next launch moves it again.
 
 When the sensor does not adopt the new ID, the driver logs a warning naming both IDs and carries
 on reading with the one the sensor reported, rather than refusing to start.
@@ -282,6 +283,29 @@ tool_flange_ft:
 > refuses to open an interface another instance already holds rather than letting the two
 > interleave commands on the same bus.
 
+## Sharing a channel with the AIDIN Hand Gen2
+
+The sensor uses the same bit timing as the AIDIN Hand Gen2, so it can share a channel of one CAN
+adapter with the robot hand. Set `can_interface` to the robot hand's interface and keep `can_mode`
+at `fd_brs`. The robot hand communicates in CAN FD with the bitrate switch, and `fd_brs` sends the
+sensor's data in the same 5 Mbit/s data phase, which keeps its frames short on a bus the robot
+hand already uses.
+
+```yaml
+right_wrist_ft:
+  ros__parameters:
+    can_interface: can0   # the interface the right hand is on
+    can_mode:      fd_brs
+```
+
+The default transmit IDs stay clear of the robot hand. Its IDs lie in `0x111`–`0x138` and
+`0x211`–`0x238`, and the sensor transmits on each of its two IDs and the two after it, which is
+`0x430`–`0x432` and `0x330`–`0x332` by default. If you change `set_id_can20` or `set_id_canfd`,
+keep both ranges outside the robot hand's.
+
+Two sensors still cannot share an interface. That rule applies between sensors only, so the robot
+hand can share one with a sensor.
+
 ## Troubleshooting
 
 The driver reports the command to run whenever the interface is at fault.
@@ -292,7 +316,7 @@ The driver reports the command to run whenever the interface is at fault.
 | `can0 is down` | The interface exists but is not up | `sudo scripts/can_up.sh can0` |
 | `can0 is not set up for CAN FD (MTU 16)` | The interface is up in classic mode while `can_mode` asks for FD | Run the `ip link` command the message prints, or set `can_mode` to `classic` |
 | `another instance already holds can0` | A second driver is running on the same interface | Stop the first one, or give this sensor its own interface |
-| `this data type puts six axes in one frame and needs CAN FD` | A combined `data_type` with `can_mode: classic` | Use an `int6` data type, or switch `can_mode` to `fd_brs` |
+| `this data type puts six axes in one frame and needs CAN FD` | A combined `data_type` with `can_mode: classic` | Use the `int6` data type, or switch `can_mode` to `fd_brs` |
 | `parameter 'rate_hz' cannot be set because it is read-only` | A `ros2 param set` on a parameter that is read at startup | Edit the parameter file and launch again |
 | `the sensor reports 2.0=... but the parameters ask for ...` | The sensor did not adopt the transmit ID the file asks for | Check that `set_id_can20` and `set_id_canfd` are what you meant. The driver keeps reading on the reported IDs |
 

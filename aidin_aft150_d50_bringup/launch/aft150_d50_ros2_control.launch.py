@@ -53,7 +53,7 @@ def build_description(blocks):
                 settings.get('can_mode', 'fd_brs'),
                 settings.get('data_type', 'float_combined'),
                 settings.get('rate_hz', 1000),
-                settings.get('set_id_can20', 0x230),
+                settings.get('set_id_can20', 0x430),
                 settings.get('set_id_canfd', 0x330),
             ))
     parts.append('</robot>')
