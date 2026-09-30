@@ -5,7 +5,7 @@
 <h1>AIDIN AFT150-D50 ROS 2</h1>
 
 A ROS 2 driver for the AIDIN AFT150-D50 six-axis force/torque sensor over SocketCAN. It supports
-every data type and update rate the sensor offers, and it publishes force in newtons and torque in
+every update rate the sensor offers, and it publishes force in newtons and torque in
 newton-metres. Run it as a standalone node, or as a `ros2_control` sensor interface that joins an
 existing robot's resource manager.
 
@@ -170,7 +170,7 @@ and what they must not.
 |---|---|---|---|
 | `can_interface` | `string` | `can0` | Name of the SocketCAN interface to open, as `ip link` lists it. The interface must already be up |
 | `can_mode` | `string` | `fd_brs` | Frame format the driver sends and expects: `classic`, `fd` or `fd_brs`. `fd_brs` adds the bitrate switch, which is what reaches 1 kHz |
-| `data_type` | `string` | `float_combined` | What the sensor transmits. One of the six values in the table below |
+| `data_type` | `string` | `float_combined` | What the sensor transmits. One of the three values in the table below |
 | `rate_hz` | `int` | `1000` | How often the sensor transmits a sample, in Hz: `100`, `250`, `500` or `1000` |
 | `set_id_can20` | `int` | `0x230` | CAN 2.0 ID the sensor transmits on, `0x000`–`0x7FF`. See [Changing the transmit ID](#changing-the-transmit-id) |
 | `set_id_canfd` | `int` | `0x330` | CAN FD ID the sensor transmits on, `0x000`–`0x7FF` |
@@ -201,10 +201,6 @@ driver rejects them unless `can_mode` is `fd` or `fd_brs`.
 
 An `int6` sample needs both frames, so the driver discards a torque frame whose force frame was
 lost rather than pairing it with an older one.
-
-> [!NOTE]
-> The driver does not publish the sensor's temperature, so it does not offer the data types that
-> make the sensor append one.
 
 ### Changing the transmit ID
 
@@ -292,7 +288,7 @@ The driver reports the command to run whenever the interface is at fault.
 | `can0 is down` | The interface exists but is not up | `sudo scripts/can_up.sh can0` |
 | `can0 is not set up for CAN FD (MTU 16)` | The interface is up in classic mode while `can_mode` asks for FD | Run the `ip link` command the message prints, or set `can_mode` to `classic` |
 | `another instance already holds can0` | A second driver is running on the same interface | Stop the first one, or give this sensor its own interface |
-| `this data type puts six axes in one frame and needs CAN FD` | A combined `data_type` with `can_mode: classic` | Use an `int6` data type, or switch `can_mode` to `fd_brs` |
+| `this data type puts six axes in one frame and needs CAN FD` | A combined `data_type` with `can_mode: classic` | Use the `int6` data type, or switch `can_mode` to `fd_brs` |
 | `parameter 'rate_hz' cannot be set because it is read-only` | A `ros2 param set` on a parameter that is read at startup | Edit the parameter file and launch again |
 | `the sensor reports 2.0=... but the parameters ask for ...` | The sensor did not adopt the transmit ID the file asks for | Check that `set_id_can20` and `set_id_canfd` are what you meant. The driver keeps reading on the reported IDs |
 

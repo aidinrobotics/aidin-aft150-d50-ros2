@@ -6,7 +6,7 @@
 #   sudo scripts/slcan_up.sh ttyACM0 down     detach
 #
 # slcan carries classic CAN 2.0 only. The frame is 8 bytes at most, so an AFT150-D50 on this path
-# can use the int6 data types and not the combined ones, which need CAN FD.
+# can use the int6 data type and not the combined ones, which need CAN FD.
 set -u
 
 CAN_BITRATE=1000000

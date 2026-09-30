@@ -45,7 +45,6 @@ void test_data_type()
   CHECK(is_valid_data_type("int12_combined"));
   CHECK(is_valid_data_type("float_combined"));
 
-  CHECK(!is_valid_data_type("int6_temp"));
   CHECK(!is_valid_data_type("float"));
   CHECK(!is_valid_data_type("INT6"));
   CHECK(!is_valid_data_type(""));

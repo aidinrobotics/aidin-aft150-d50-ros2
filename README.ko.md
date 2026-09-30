@@ -5,7 +5,7 @@
 <h1>AIDIN AFT150-D50 ROS 2</h1>
 
 AIDIN AFT150-D50 6축 힘·토크 센서를 SocketCAN으로 읽는 ROS 2 driver입니다. 센서가 제공하는 모든
-데이터 타입과 업데이트 레이트를 지원하며, 힘은 N, 토크는 Nm 단위로 발행합니다. 독립 node로
+업데이트 레이트를 지원하며, 힘은 N, 토크는 Nm 단위로 발행합니다. 독립 node로
 실행하거나, 기존 로봇의 resource manager에 합류하는 `ros2_control` sensor interface로 실행할 수
 있습니다.
 
@@ -169,7 +169,7 @@ left_wrist_ft:
 |---|---|---|---|
 | `can_interface` | `string` | `can0` | 열 SocketCAN 인터페이스 이름이며 `ip link`가 표시하는 이름과 같습니다. 이미 준비된 상태여야 합니다 |
 | `can_mode` | `string` | `fd_brs` | driver가 주고받을 프레임 형식입니다. `classic`·`fd`·`fd_brs` 중 하나이며, `fd_brs`는 BRS를 켜서 1 kHz를 낼 수 있습니다 |
-| `data_type` | `string` | `float_combined` | 센서가 보낼 형식입니다. 아래 표의 여섯 값 중 하나입니다 |
+| `data_type` | `string` | `float_combined` | 센서가 보낼 형식입니다. 아래 표의 세 값 중 하나입니다 |
 | `rate_hz` | `int` | `1000` | 센서가 샘플을 보내는 주기입니다. `100`·`250`·`500`·`1000` 중 하나이며 단위는 Hz입니다 |
 | `set_id_can20` | `int` | `0x230` | 센서가 데이터를 보낼 때 사용할 CAN 2.0 ID이며 `0x000`~`0x7FF`입니다. [Changing the transmit ID](#changing-the-transmit-id)를 참고하십시오 |
 | `set_id_canfd` | `int` | `0x330` | 센서가 데이터를 보낼 때 사용할 CAN FD ID이며 `0x000`~`0x7FF`입니다 |
@@ -200,10 +200,6 @@ combined 타입 두 가지는 여섯 축을 한 프레임에 담으므로 클래
 
 `int6`는 프레임 두 개가 모두 있어야 샘플 하나가 됩니다. 힘 프레임을 놓친 토크 프레임은 이전 힘과
 짝짓지 않고 버립니다.
-
-> [!NOTE]
-> driver는 센서 온도를 발행하지 않으므로, 센서가 온도를 덧붙이게 하는 데이터 타입은 제공하지
-> 않습니다.
 
 ### Changing the transmit ID
 
@@ -291,7 +287,7 @@ tool_flange_ft:
 | `can0 is down` | 인터페이스는 있지만 준비되지 않았습니다 | `sudo scripts/can_up.sh can0` |
 | `can0 is not set up for CAN FD (MTU 16)` | `can_mode`는 FD를 요구하는데 인터페이스가 클래식으로 준비되어 있습니다 | message에 표시된 `ip link` 명령을 실행하거나 `can_mode`를 `classic`으로 바꿉니다 |
 | `another instance already holds can0` | 같은 인터페이스에서 다른 driver가 작동 중입니다 | 먼저 실행한 쪽을 종료하거나, 이 센서에 별도 인터페이스를 지정합니다 |
-| `this data type puts six axes in one frame and needs CAN FD` | combined 계열 `data_type`을 `can_mode: classic`과 함께 설정했습니다 | `int6` 계열을 사용하거나 `can_mode`를 `fd_brs`로 바꿉니다 |
+| `this data type puts six axes in one frame and needs CAN FD` | combined 계열 `data_type`을 `can_mode: classic`과 함께 설정했습니다 | `int6`를 사용하거나 `can_mode`를 `fd_brs`로 바꿉니다 |
 | `parameter 'rate_hz' cannot be set because it is read-only` | 기동할 때만 읽는 parameter에 `ros2 param set`을 실행했습니다 | parameter 파일을 고치고 다시 실행합니다 |
 | `the sensor reports 2.0=... but the parameters ask for ...` | 센서가 파일에 지정한 transmit ID를 받아들이지 않았습니다 | `set_id_can20`과 `set_id_canfd` 값이 의도한 것인지 확인합니다. driver는 센서가 응답한 ID로 계속 읽습니다 |
 

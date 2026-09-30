@@ -56,7 +56,7 @@ if [[ "$IFACE" == slcan* ]]; then
     fi
     ip link set "$IFACE" up 2>/dev/null || true
     ip link set "$IFACE" txqueuelen 1000 2>/dev/null || true
-    echo "[OK] $IFACE is ready — classic CAN 2.0 only, so use an int6 data type"
+    echo "[OK] $IFACE is ready — classic CAN 2.0 only, so use the int6 data type"
     ip -br link show "$IFACE"
     exit 0
 fi

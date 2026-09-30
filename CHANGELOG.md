@@ -46,9 +46,7 @@ parameters on both paths.
   parameter instead.
 - **The `int6`, `int12_combined` and `float_combined` data types and all four update rates are
   supported.** The two combined types need CAN FD, and the driver rejects them when `can_mode` is
-  `classic` rather than failing later on the wire. The sensor's with-temperature variants are left
-  out, because neither the wrench nor the state interfaces carry a temperature, so asking for one
-  would only lengthen every frame.
+  `classic` rather than failing later on the wire.
 - **One parameter file describes any number of sensors.** Each top-level block is one sensor and
   the key is its node name, so adding a sensor means adding a block. Both launch files read the
   same file, and neither imposes a fixed left and right.
