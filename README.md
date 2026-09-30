@@ -25,8 +25,8 @@ We verify that the driver builds and runs on the configuration below.
 | ROS 2 | Humble |
 | CAN interface | USB CAN-FD adapter (SocketCAN), 1 Mbit/s nominal, 5 Mbit/s data phase |
 
-An slcan serial adapter such as a CANable works as well, with the limits described in
-[Setting up the CAN interface](#setting-up-the-can-interface).
+A CANable works as well. Which path it takes depends on its firmware, as
+[Setting up the CAN interface](#setting-up-the-can-interface) describes.
 
 ## Installation
 
@@ -36,8 +36,8 @@ colcon build --packages-up-to aidin_aft150_d50_bringup
 ```
 
 `install.sh` prepares the machine: it builds the CAN kernel drivers this distribution does not
-ship, installs a udev rule that sets an interface up when an adapter is plugged in, and adds you
-to the `dialout` group. Log out and back in once so the group membership takes effect.
+ship and adds you to the `dialout` group. Log out and back in once so the group membership takes
+effect.
 
 The driver itself is a set of ROS 2 packages, so `colcon` builds it.
 
@@ -52,23 +52,37 @@ All four packages share one version number and are released together.
 
 ## Setting up the CAN interface
 
-With the udev rule installed, plugging an adapter in is enough. To set an interface up by hand:
+Bring the interface up before starting the driver. The setting does not survive a reboot or a
+re-plug, so bring it up again after either. Use the script that matches how the adapter appears.
+
+| Adapter | Appears as | Script |
+|---|---|---|
+| PCAN, IXXAT, or a CANable on candleLight firmware | `can0` in `ip -br link show type can` | `can_up.sh` |
+| A CANable on slcan firmware | `/dev/ttyACM0` | `slcan_up.sh`, which attaches it as `slcan0` |
 
 ```bash
-sudo scripts/can_up.sh can0        # USB adapter, CAN FD at 1M/5M
-sudo scripts/slcan_up.sh ttyACM0   # CANable, which appears as slcan0
+sudo scripts/can_up.sh can0        # an adapter that appears as can0
+sudo scripts/slcan_up.sh ttyACM0   # a CANable on slcan firmware, attached as slcan0
 sudo scripts/can_up.sh vcan0       # virtual CAN, with no hardware
 ```
 
-The bit timing must match the sensor. `can_up.sh` uses the sensor's factory values, and
-`/etc/default/aft-can` holds them if a sensor is configured differently.
+`can_up.sh` asks for the sensor's factory timing, CAN FD at 1 Mbit/s nominal and 5 Mbit/s data
+phase, and falls back to classic CAN 2.0 when the adapter refuses it. Whether an adapter reaches
+5 Mbit/s depends on the adapter and its firmware, so check the line the script prints.
+
+```text
+[OK] can0 is ready — CAN FD  nominal=1000000@0.875 sjw=10  data=5000000@0.875 dsjw=2
+```
+
+A line that reads `CAN 2.0` instead means the adapter took classic CAN only. The sensor then needs
+`can_mode: classic` and the `int6` data type.
 
 The driver opens an interface that is already up. It does not configure the link itself, and it
 reports the command to run when the interface is missing or down.
 
 > [!IMPORTANT]
-> An slcan adapter carries classic CAN 2.0 only. Its frames hold eight bytes, so a sensor reached
-> through one must use the `int6` data type. The combined types need CAN FD.
+> A CANable on slcan firmware carries classic CAN 2.0 only. Its frames hold eight bytes, so a
+> sensor reached through one must use the `int6` data type. The combined types need CAN FD.
 
 ## Running the driver
 

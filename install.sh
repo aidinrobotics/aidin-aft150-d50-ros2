@@ -1,13 +1,13 @@
 #!/usr/bin/env bash
-# Prepares this machine for the AFT150-D50 ROS 2 driver: CAN drivers, automatic interface setup
-# and the permissions that go with them.
+# Prepares this machine for the AFT150-D50 ROS 2 driver: CAN drivers and the permissions that go
+# with them.
 #
 #   sudo ./install.sh                install, picking the CAN drivers this kernel is missing
 #   sudo ./install.sh --no-drivers   install without building any CAN driver
 #   sudo ./install.sh --uninstall    remove
 #
 # The driver itself is a set of ROS 2 packages, so it is built with colcon rather than installed
-# here. This script covers what colcon cannot: kernel modules, udev and systemd.
+# here. This script covers what colcon cannot: kernel modules and group membership.
 set -u
 cd "$(dirname "$(readlink -f "$0")")"
 DIR="$(pwd)"
@@ -22,12 +22,13 @@ RUSER="${SUDO_USER:-$(logname 2>/dev/null || echo root)}"
 # ─────────────────────────────── uninstall ───────────────────────────────
 if [ "${1:-}" = "--uninstall" ]; then
     echo "Removing."
+    # Earlier versions of this script set interfaces up automatically. These are what they left.
     for pattern in 'aft-can@*' 'aft-slcan@*'; do
         systemctl list-units "$pattern" --all --no-legend 2>/dev/null | awk '{print $1}' |
             while read -r u; do [ -n "$u" ] && systemctl stop "$u" 2>/dev/null; done
     done
     rm -f /etc/systemd/system/aft-can@.service /etc/systemd/system/aft-slcan@.service \
-          /etc/udev/rules.d/50-aft150-can.rules \
+          /etc/udev/rules.d/50-aft150-can.rules /etc/default/aft-can \
           /usr/local/bin/aft-can-up /usr/local/bin/aft-slcan-up
     systemctl daemon-reload 2>/dev/null || true
     udevadm control --reload-rules 2>/dev/null || true
@@ -35,8 +36,7 @@ if [ "${1:-}" = "--uninstall" ]; then
     [ -x "$S/install_ixxat_driver.sh" ] && "$S/install_ixxat_driver.sh" uninstall
     echo
     echo "Done."
-    echo "  Left in place: /etc/default/aft-can (settings), dialout group membership,"
-    echo "                 and this checkout with whatever colcon built."
+    echo "  Left in place: dialout group membership, and this checkout with whatever colcon built."
     exit 0
 fi
 
@@ -126,22 +126,13 @@ else
             || echo "    [warning] IXXAT driver install failed (other adapters still work)"
     fi
 
-    echo "  CANable: no kernel driver needed, slcand attaches it"
+    echo "  CANable: nothing to build (candleLight uses the kernel's gs_usb, slcan uses slcand)"
     set +o pipefail
 fi
 
 echo
-echo "[3/4] automatic setup and permissions"
-install -m 755 "$S/can_up.sh" /usr/local/bin/aft-can-up
-install -m 755 "$S/slcan_up.sh" /usr/local/bin/aft-slcan-up
-install -m 644 "$S/50-aft150-can.rules" /etc/udev/rules.d/50-aft150-can.rules
-install -m 644 "$S/aft-can@.service" /etc/systemd/system/aft-can@.service
-install -m 644 "$S/aft-slcan@.service" /etc/systemd/system/aft-slcan@.service
-[ -e /etc/default/aft-can ] || install -m 644 "$S/aft-can.default" /etc/default/aft-can
-systemctl daemon-reload 2>/dev/null || true
-udevadm control --reload-rules 2>/dev/null || true
+echo "[3/4] permissions"
 usermod -aG dialout "$RUSER"
-echo "  plugging in a USB adapter now sets it up automatically, across reboots too"
 echo "  added $RUSER to the dialout group"
 
 echo
@@ -165,6 +156,7 @@ echo
 echo "════════════════════════════════════════════════════"
 echo " Setup complete"
 echo "════════════════════════════════════════════════════"
+echo "  After a reboot or a re-plug, bring the interface up again:  sudo scripts/can_up.sh can0"
 echo "  Build the driver:  colcon build --packages-up-to aidin_aft150_d50_bringup"
 echo "  Run it:            ros2 launch aidin_aft150_d50_bringup aft150_d50.launch.py"
 echo "  Remove this setup: sudo ./install.sh --uninstall"

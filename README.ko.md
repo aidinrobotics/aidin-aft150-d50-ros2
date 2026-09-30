@@ -25,8 +25,8 @@ AIDIN AFT150-D50 6축 힘·토크 센서를 SocketCAN으로 읽는 ROS 2 driver�
 | ROS 2 | Humble |
 | CAN interface | USB CAN-FD 어댑터(SocketCAN), nominal 1 Mbit/s, data 구간 5 Mbit/s |
 
-CANable 같은 slcan 시리얼 어댑터도 사용할 수 있으며, 제약은
-[Setting up the CAN interface](#setting-up-the-can-interface)에 있습니다.
+CANable도 사용할 수 있습니다. 펌웨어에 따라 연결 경로가 다르며,
+[Setting up the CAN interface](#setting-up-the-can-interface)에서 설명합니다.
 
 ## Installation
 
@@ -35,9 +35,8 @@ sudo ./install.sh
 colcon build --packages-up-to aidin_aft150_d50_bringup
 ```
 
-`install.sh`는 장비를 준비합니다. 배포판에 없는 CAN 커널 드라이버를 빌드하고, 어댑터를 연결하면
-인터페이스가 자동으로 준비되도록 udev 규칙을 설치하며, 현재 사용자를 `dialout` 그룹에 추가합니다.
-그룹 권한이 적용되도록 한 번 로그아웃했다가 다시 로그인하십시오.
+`install.sh`는 장비를 준비합니다. 배포판에 없는 CAN 커널 드라이버를 빌드하고, 현재 사용자를
+`dialout` 그룹에 추가합니다. 그룹 권한이 적용되도록 한 번 로그아웃했다가 다시 로그인하십시오.
 
 driver 자체는 ROS 2 package이므로 `colcon`으로 빌드합니다.
 
@@ -52,23 +51,37 @@ driver 자체는 ROS 2 package이므로 `colcon`으로 빌드합니다.
 
 ## Setting up the CAN interface
 
-udev 규칙을 설치했다면 어댑터를 연결하는 것으로 충분합니다. 직접 준비할 때는 아래를 실행합니다.
+driver를 실행하기 전에 인터페이스를 준비합니다. 이 설정은 재부팅하거나 어댑터를 다시 연결하면
+사라지므로, 그때마다 다시 준비해야 합니다. 어댑터가 나타나는 형태에 맞는 스크립트를 실행합니다.
+
+| Adapter | Appears as | Script |
+|---|---|---|
+| PCAN, IXXAT, candleLight 펌웨어의 CANable | `ip -br link show type can`의 `can0` | `can_up.sh` |
+| slcan 펌웨어의 CANable | `/dev/ttyACM0` | `slcan_up.sh`가 `slcan0`으로 연결합니다 |
 
 ```bash
-sudo scripts/can_up.sh can0        # USB 어댑터, CAN FD 1M/5M
-sudo scripts/slcan_up.sh ttyACM0   # CANable, slcan0 으로 나타납니다
+sudo scripts/can_up.sh can0        # can0 으로 나타나는 어댑터
+sudo scripts/slcan_up.sh ttyACM0   # slcan 펌웨어의 CANable, slcan0 으로 연결됩니다
 sudo scripts/can_up.sh vcan0       # 하드웨어 없이 사용하는 가상 CAN
 ```
 
-비트 타이밍은 센서와 일치해야 합니다. `can_up.sh`가 센서의 공장 설정값을 사용하며, 센서를 다르게
-설정했다면 `/etc/default/aft-can`에서 값을 바꿉니다.
+`can_up.sh`는 센서의 공장 설정인 CAN FD(nominal 1 Mbit/s, data 구간 5 Mbit/s)를 먼저 요청하고,
+어댑터가 거부하면 클래식 CAN 2.0으로 설정합니다. 5 Mbit/s를 낼 수 있는지는 어댑터와 펌웨어에 따라
+다르므로, 스크립트가 출력하는 줄을 확인하십시오.
+
+```text
+[OK] can0 is ready — CAN FD  nominal=1000000@0.875 sjw=10  data=5000000@0.875 dsjw=2
+```
+
+이 줄에 `CAN 2.0`이 표시되면 어댑터가 클래식 CAN만 받아들인 것입니다. 이때 센서는
+`can_mode: classic`과 `int6` 데이터 타입을 사용해야 합니다.
 
 driver는 이미 준비된 인터페이스를 열기만 합니다. 인터페이스를 직접 설정하지 않으며, 인터페이스가
 없거나 내려가 있으면 실행할 명령을 알려 줍니다.
 
 > [!IMPORTANT]
-> slcan 어댑터는 클래식 CAN 2.0만 전달합니다. 프레임이 8바이트까지이므로 이 경로로 연결한 센서는
-> `int6` 데이터 타입을 사용해야 합니다. combined 타입은 CAN FD가 필요합니다.
+> slcan 펌웨어의 CANable은 클래식 CAN 2.0만 전달합니다. 프레임이 8바이트까지이므로 이 경로로
+> 연결한 센서는 `int6` 데이터 타입을 사용해야 합니다. combined 타입은 CAN FD가 필요합니다.
 
 ## Running the driver
 

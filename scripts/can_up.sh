@@ -1,14 +1,14 @@
 #!/usr/bin/env bash
-# Bring up a SocketCAN interface: CAN FD where the controller supports it, classic CAN 2.0
-# otherwise. aft-can@.service calls this; it installs as /usr/local/bin/aft-can-up.
+# Bring up a SocketCAN interface: CAN FD where the adapter accepts it, classic CAN 2.0
+# otherwise.
 #
-#   sudo scripts/can_up.sh                      can0 at 1M/5M FD
-#   sudo scripts/can_up.sh can1                 can1 at 1M/5M FD
+#   sudo scripts/can_up.sh                      can0, CAN FD at 1M/5M if the adapter accepts it
+#   sudo scripts/can_up.sh can1                 can1, likewise
 #   sudo scripts/can_up.sh can0 500000 2000000  bitrates given explicitly
 #   sudo scripts/can_up.sh vcan0                virtual CAN, for testing without hardware
 #   sudo scripts/can_up.sh slcan0               an slcan adapter that slcand already attached
 set -u
-# Defaults come from the config file when there is one. An argument wins over both.
+# The second and third arguments override the two bitrates.
 CAN_BITRATE=1000000
 CAN_DBITRATE=5000000
 # The bit timing has to match the sensor, which uses the same timing as the AIDIN Hand Gen2:
@@ -19,7 +19,6 @@ CAN_SAMPLE_POINT=0.875
 CAN_DSAMPLE_POINT=0.875
 CAN_SJW=10
 CAN_DSJW=2
-[ -r /etc/default/aft-can ] && . /etc/default/aft-can
 
 IFACE="${1:-can0}"
 BITRATE="${2:-$CAN_BITRATE}"
@@ -45,12 +44,12 @@ if [[ "$IFACE" == vcan* ]]; then
 fi
 
 # ---- slcan: slcand owns the bitrate, so ip link cannot set one ----
-# The interface exists only while slcand is running, and aft-slcan@.service starts it from the
-# udev rule. Asking for a bitrate here fails, so this only makes sure the link is up.
+# The interface exists only while slcand is running, and slcan_up.sh is what starts it. Asking
+# for a bitrate here fails, so this only makes sure the link is up.
 if [[ "$IFACE" == slcan* ]]; then
     if ! ip link show "$IFACE" >/dev/null 2>&1; then
-        echo "[FAIL] '$IFACE' does not exist. slcand attaches it when the adapter is plugged in." >&2
-        echo "       Attach it by hand with:  sudo scripts/slcan_up.sh ttyACM0" >&2
+        echo "[FAIL] '$IFACE' does not exist. Attach the adapter first:" >&2
+        echo "       sudo scripts/slcan_up.sh ttyACM0" >&2
         exit 1
     fi
     ip link set "$IFACE" up 2>/dev/null || true
