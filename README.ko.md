@@ -68,7 +68,7 @@ driver는 이미 준비된 인터페이스를 열기만 합니다. 인터페이�
 
 > [!IMPORTANT]
 > slcan 어댑터는 클래식 CAN 2.0만 전달합니다. 프레임이 8바이트까지이므로 이 경로로 연결한 센서는
-> `int6` 계열 데이터 타입을 사용해야 합니다. combined 타입은 CAN FD가 필요합니다.
+> `int6` 데이터 타입을 사용해야 합니다. combined 타입은 CAN FD가 필요합니다.
 
 ## Running the driver
 
@@ -192,20 +192,18 @@ parameter 파일을 고치고 다시 실행하십시오.
 | Value | Frames per sample | Needs CAN FD | Description |
 |---|---|---|---|
 | `int6` | 2 | 아니오 | 힘과 토크를 정수로 변환해 프레임 두 개로 나누어 보냅니다 |
-| `int6_temp` | 2 | 아니오 | `int6`와 같고 온도를 함께 보냅니다 |
 | `int12_combined` | 1 | 예 | 여섯 축을 정수로 변환해 한 프레임에 담습니다 |
-| `int12_combined_temp` | 1 | 예 | `int12_combined`와 같고 온도를 함께 보냅니다 |
 | `float_combined` | 1 | 예 | 여섯 축을 32비트 부동소수점으로 한 프레임에 담습니다 |
-| `float_combined_temp` | 1 | 예 | `float_combined`와 같고 온도를 함께 보냅니다 |
 
-combined 계열 네 가지는 여섯 축을 한 프레임에 담으므로 클래식 CAN 프레임에 들어가지 않습니다.
+combined 타입 두 가지는 여섯 축을 한 프레임에 담으므로 클래식 CAN 프레임에 들어가지 않습니다.
 `can_mode`가 `fd` 또는 `fd_brs`가 아니면 driver가 거부합니다.
 
-`int6` 계열은 프레임 두 개가 모두 있어야 샘플 하나가 됩니다. 힘 프레임을 놓친 토크 프레임은 이전
-힘과 짝짓지 않고 버립니다.
+`int6`는 프레임 두 개가 모두 있어야 샘플 하나가 됩니다. 힘 프레임을 놓친 토크 프레임은 이전 힘과
+짝짓지 않고 버립니다.
 
 > [!NOTE]
-> driver는 온도 바이트를 사용하지 않으므로 `_temp` 계열을 선택해도 발행 내용은 달라지지 않습니다.
+> driver는 센서 온도를 발행하지 않으므로, 센서가 온도를 덧붙이게 하는 데이터 타입은 제공하지
+> 않습니다.
 
 ### Changing the transmit ID
 
