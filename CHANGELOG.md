@@ -55,12 +55,13 @@ parameters on both paths.
 - **One parameter file describes any number of sensors.** Each top-level block is one sensor and
   the key is its node name, so adding a sensor means adding a block. Both launch files read the
   same file, and neither imposes a fixed left and right.
-- **`install.sh` prepares the machine.** It builds the PCAN and IXXAT kernel drivers when the
-  distribution does not ship them, installs a udev rule that sets an interface up when an adapter
-  is plugged in, and attaches an slcan serial adapter through `slcand` so a CANable appears as an
-  ordinary CAN interface. The interface comes up at the timing the AIDIN Hand Gen2 uses, 1 Mbit/s
-  nominal and 5 Mbit/s data phase with both sample points at 87.5%, so one set of bring-up steps
-  covers both devices.
+- **`scripts/can_up.sh` and `scripts/slcan_up.sh` bring an interface up by hand, as the AIDIN
+  Hand Gen2's is.** `can_up.sh` asks for the robot hand's timing, CAN FD at 1 Mbit/s nominal and
+  5 Mbit/s data phase with both sample points at 87.5%, and falls back to classic CAN 2.0 when the
+  adapter refuses it, because not every adapter or firmware reaches 5 Mbit/s. `slcan_up.sh`
+  attaches a CANable on slcan firmware through `slcand`. Nothing brings an interface up on its
+  own, so run the script again after a reboot or a re-plug. The adapter needs only the kernel's
+  own driver, `peak_usb` for a PEAK PCAN-USB FD or `gs_usb` for a CANable on candleLight firmware.
 - **The driver refuses to open an interface another instance already holds.** Starting the
   standalone node and the `ros2_control` component on the same sensor would interleave their
   commands, and the second one now fails to start with a message that says so.

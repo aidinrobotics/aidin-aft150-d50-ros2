@@ -25,19 +25,30 @@ We verify that the driver builds and runs on the configuration below.
 | ROS 2 | Humble |
 | CAN interface | USB CAN-FD adapter (SocketCAN), 1 Mbit/s nominal, 5 Mbit/s data phase |
 
-An slcan serial adapter such as a CANable works as well, with the limits described in
-[Setting up the CAN interface](#setting-up-the-can-interface).
+A CANable works as well. Which path it takes depends on its firmware, as
+[Setting up the CAN interface](#setting-up-the-can-interface) describes.
 
 ## Installation
 
 ```bash
-sudo ./install.sh
+sudo apt install can-utils
 colcon build --packages-up-to aidin_aft150_d50_bringup
 ```
 
-`install.sh` prepares the machine: it builds the CAN kernel drivers this distribution does not
-ship, installs a udev rule that sets an interface up when an adapter is plugged in, and adds you
-to the `dialout` group. Log out and back in once so the group membership takes effect.
+`can-utils` provides `slcand`, which `slcan_up.sh` needs, and `candump`, which
+[Troubleshooting](#troubleshooting) uses.
+
+The adapter's kernel driver has to be present. Check the one for your adapter.
+
+```bash
+modinfo peak_usb | head -2       # PEAK PCAN-USB FD
+modinfo gs_usb   | head -2       # CANable on candleLight firmware
+```
+
+A `filename` line means the driver is present. `Module ... not found` means the kernel lacks it:
+on a stock Ubuntu kernel run `sudo apt install linux-modules-extra-$(uname -r)`, and on a kernel
+you built yourself or a vendor kernel such as a Jetson's, enable `CONFIG_CAN_PEAK_USB` or
+`CONFIG_CAN_GS_USB` and rebuild it. A CANable on slcan firmware needs neither driver.
 
 The driver itself is a set of ROS 2 packages, so `colcon` builds it.
 
@@ -52,23 +63,37 @@ All four packages share one version number and are released together.
 
 ## Setting up the CAN interface
 
-With the udev rule installed, plugging an adapter in is enough. To set an interface up by hand:
+Bring the interface up before starting the driver. The setting does not survive a reboot or a
+re-plug, so bring it up again after either. Use the script that matches how the adapter appears.
+
+| Adapter | Appears as | Script |
+|---|---|---|
+| A PEAK PCAN-USB FD, or a CANable on candleLight firmware | `can0` in `ip -br link show type can` | `can_up.sh` |
+| A CANable on slcan firmware | `/dev/ttyACM0` | `slcan_up.sh`, which attaches it as `slcan0` |
 
 ```bash
-sudo scripts/can_up.sh can0        # USB adapter, CAN FD at 1M/5M
-sudo scripts/slcan_up.sh ttyACM0   # CANable, which appears as slcan0
+sudo scripts/can_up.sh can0        # an adapter that appears as can0
+sudo scripts/slcan_up.sh ttyACM0   # a CANable on slcan firmware, attached as slcan0
 sudo scripts/can_up.sh vcan0       # virtual CAN, with no hardware
 ```
 
-The bit timing must match the sensor. `can_up.sh` uses the sensor's factory values, and
-`/etc/default/aft-can` holds them if a sensor is configured differently.
+`can_up.sh` asks for the sensor's factory timing, CAN FD at 1 Mbit/s nominal and 5 Mbit/s data
+phase, and falls back to classic CAN 2.0 when the adapter refuses it. Whether an adapter reaches
+5 Mbit/s depends on the adapter and its firmware, so check the line the script prints.
+
+```text
+[OK] can0 is ready — CAN FD  nominal=1000000@0.875 sjw=10  data=5000000@0.875 dsjw=2
+```
+
+A line that reads `CAN 2.0` instead means the adapter took classic CAN only. The sensor then needs
+`can_mode: classic` and the `int6` data type.
 
 The driver opens an interface that is already up. It does not configure the link itself, and it
 reports the command to run when the interface is missing or down.
 
 > [!IMPORTANT]
-> An slcan adapter carries classic CAN 2.0 only. Its frames hold eight bytes, so a sensor reached
-> through one must use the `int6` data type. The combined types need CAN FD.
+> A CANable on slcan firmware carries classic CAN 2.0 only. Its frames hold eight bytes, so a
+> sensor reached through one must use the `int6` data type. The combined types need CAN FD.
 
 ## Running the driver
 
@@ -312,7 +337,7 @@ The driver reports the command to run whenever the interface is at fault.
 
 | Message | Cause | What to do |
 |---|---|---|
-| `there is no interface called can0` | The adapter is not plugged in, or its kernel driver is missing | `ip -br link show type can`, then `sudo ./install.sh` if the driver is missing |
+| `there is no interface called can0` | The adapter is not plugged in, or its kernel driver is missing | `ip -br link show type can`, then check the driver as [Installation](#installation) describes |
 | `can0 is down` | The interface exists but is not up | `sudo scripts/can_up.sh can0` |
 | `can0 is not set up for CAN FD (MTU 16)` | The interface is up in classic mode while `can_mode` asks for FD | Run the `ip link` command the message prints, or set `can_mode` to `classic` |
 | `another instance already holds can0` | A second driver is running on the same interface | Stop the first one, or give this sensor its own interface |
@@ -329,9 +354,3 @@ ros2 service call /right_wrist_ft/confirm_id std_srvs/srv/Trigger
 
 The response reports the IDs the sensor answered with. When the sensor does not answer at all,
 `candump can0` shows whether it is transmitting.
-
-## Third-party software
-
-`scripts/drivers/` contains the PEAK and IXXAT kernel driver sources, both under the GPL-2.0.
-[THIRD_PARTY_NOTICES.md](THIRD_PARTY_NOTICES.md) carries the notices and the modifications made to
-them.
