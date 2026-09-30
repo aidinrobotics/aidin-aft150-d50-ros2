@@ -2,24 +2,23 @@
 # Bring up a SocketCAN interface: CAN FD where the controller supports it, classic CAN 2.0
 # otherwise. aft-can@.service calls this; it installs as /usr/local/bin/aft-can-up.
 #
-#   sudo scripts/can_up.sh                      can0 at 1M/4M FD
-#   sudo scripts/can_up.sh can1                 can1 at 1M/4M FD
+#   sudo scripts/can_up.sh                      can0 at 1M/5M FD
+#   sudo scripts/can_up.sh can1                 can1 at 1M/5M FD
 #   sudo scripts/can_up.sh can0 500000 2000000  bitrates given explicitly
 #   sudo scripts/can_up.sh vcan0                virtual CAN, for testing without hardware
 #   sudo scripts/can_up.sh slcan0               an slcan adapter that slcand already attached
 set -u
 # Defaults come from the config file when there is one. An argument wins over both.
 CAN_BITRATE=1000000
-CAN_DBITRATE=4000000
-# The bit timing has to match the sensor. These are its factory settings:
-#   original:  nom_brp=2  nom_tseg1=34 nom_tseg2=5 nom_sjw=4   (80MHz -> 1M @ 87.5%)
-#              data_brp=1 data_tseg1=14 data_tseg2=5 data_sjw=5 (80MHz -> 4M @ 75%)
+CAN_DBITRATE=5000000
+# The bit timing has to match the sensor, which uses the same timing as the AIDIN Hand Gen2:
+#   nominal 1M @ 87.5%, SJW 10 / data 5M @ 87.5%, SJW 2
 # The kernel defaults to a 75% sample point and an SJW of 1, so leaving these out changes them.
 # A nominal sample point of 75% instead of 87.5% makes CAN FD BRS transmission fail.
 CAN_SAMPLE_POINT=0.875
-CAN_DSAMPLE_POINT=0.75
-CAN_SJW=4
-CAN_DSJW=5
+CAN_DSAMPLE_POINT=0.875
+CAN_SJW=10
+CAN_DSJW=2
 [ -r /etc/default/aft-can ] && . /etc/default/aft-can
 
 IFACE="${1:-can0}"
@@ -83,19 +82,18 @@ try_cfg() {
 # back. PEAK's pcan driver reports no data_bittiming_const even on an adapter that has CAN FD.
 # Falling back to classic has to clear the FD flag a previous attempt may have left set.
 if   try_cfg bitrate "$BITRATE" sample-point "$SP" sjw "$SJW" \
-             dbitrate "$DBITRATE" dsample-point "$DSP" dsjw "$DSJW" \
-             fd on restart-ms 100; then
+             dbitrate "$DBITRATE" dsample-point "$DSP" dsjw "$DSJW" fd on; then
     MODE="CAN FD  nominal=${BITRATE}@${SP} sjw=${SJW}  data=${DBITRATE}@${DSP} dsjw=${DSJW}"
 elif try_cfg bitrate "$BITRATE" sample-point "$SP" \
-             dbitrate "$DBITRATE" dsample-point "$DSP" fd on restart-ms 100; then
+             dbitrate "$DBITRATE" dsample-point "$DSP" fd on; then
     MODE="CAN FD  nominal=${BITRATE}@${SP}  data=${DBITRATE}@${DSP}  (no SJW accepted, using defaults)"
-elif try_cfg bitrate "$BITRATE" dbitrate "$DBITRATE" fd on restart-ms 100; then
+elif try_cfg bitrate "$BITRATE" dbitrate "$DBITRATE" fd on; then
     MODE="CAN FD  nominal=${BITRATE}  data=${DBITRATE}  (no sample point accepted, kernel defaults, BRS may fail)"
-elif try_cfg fd off bitrate "$BITRATE" sample-point "$SP" sjw "$SJW" restart-ms 100; then
+elif try_cfg fd off bitrate "$BITRATE" sample-point "$SP" sjw "$SJW"; then
     MODE="CAN 2.0 ${BITRATE}@${SP} sjw=${SJW}  (this driver takes no FD settings over ip link)"
-elif try_cfg fd off bitrate "$BITRATE" sample-point "$SP" restart-ms 100; then
+elif try_cfg fd off bitrate "$BITRATE" sample-point "$SP"; then
     MODE="CAN 2.0 ${BITRATE}@${SP}  (this driver takes no FD settings over ip link)"
-elif try_cfg fd off bitrate "$BITRATE" restart-ms 100; then
+elif try_cfg fd off bitrate "$BITRATE"; then
     MODE="CAN 2.0 ${BITRATE}  (no FD and no sample point accepted)"
 else
     ip link set "$IFACE" down 2>/dev/null

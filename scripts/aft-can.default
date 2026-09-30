@@ -1,17 +1,17 @@
-# CAN 자동 기동 설정 — /etc/default/aft-can 으로 설치된다.
-# 값을 바꾸면 다음 연결(또는 재부팅)부터 적용된다.
+# Automatic CAN setup. install.sh puts this in /etc/default/aft-can.
+# A change applies from the next time an adapter is plugged in, or from the next boot.
 
-# 공칭 비트레이트 (CAN 2.0 / CAN FD 의 arbitration 구간)
+# Nominal bitrate: CAN 2.0, and the arbitration phase of CAN FD
 CAN_BITRATE=1000000
 
-# CAN FD 데이터 구간 비트레이트 (FD 미지원 어댑터에서는 무시된다)
-CAN_DBITRATE=4000000
+# CAN FD data phase bitrate. An adapter without CAN FD ignores it.
+CAN_DBITRATE=5000000
 
-# 비트 타이밍 — 센서와 맞아야 한다. 아래가 센서 기본 설정값이다.
-#   nominal 1Mbps @ 87.5%, SJW 4 / data 4Mbps @ 75%, SJW 5
-# 커널 기본값은 샘플포인트 0.75, SJW 1 이라 지정하지 않으면 어긋난다.
-# (특히 nominal 이 87.5% 가 아니면 CAN FD BRS 송신이 실패한다.)
+# The bit timing has to match the sensor, which uses the same timing as the AIDIN Hand Gen2:
+#   nominal 1M @ 87.5%, SJW 10 / data 5M @ 87.5%, SJW 2
+# The kernel defaults to a 75% sample point and an SJW of 1, so leaving these out changes them.
+# A nominal sample point of 75% instead of 87.5% makes CAN FD BRS transmission fail.
 CAN_SAMPLE_POINT=0.875
-CAN_DSAMPLE_POINT=0.75
-CAN_SJW=4
-CAN_DSJW=5
+CAN_DSAMPLE_POINT=0.875
+CAN_SJW=10
+CAN_DSJW=2

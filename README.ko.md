@@ -23,7 +23,7 @@ AIDIN AFT150-D50 6축 힘·토크 센서를 SocketCAN으로 읽는 ROS 2 driver�
 |---|---|
 | Operating System | Ubuntu 22.04 |
 | ROS 2 | Humble |
-| CAN interface | USB CAN-FD 어댑터(SocketCAN), nominal 1 Mbit/s, data 구간 4 Mbit/s |
+| CAN interface | USB CAN-FD 어댑터(SocketCAN), nominal 1 Mbit/s, data 구간 5 Mbit/s |
 
 CANable 같은 slcan 시리얼 어댑터도 사용할 수 있으며, 제약은
 [Setting up the CAN interface](#setting-up-the-can-interface)에 있습니다.
@@ -55,7 +55,7 @@ driver 자체는 ROS 2 package이므로 `colcon`으로 빌드합니다.
 udev 규칙을 설치했다면 어댑터를 연결하는 것으로 충분합니다. 직접 준비할 때는 아래를 실행합니다.
 
 ```bash
-sudo scripts/can_up.sh can0        # USB 어댑터, CAN FD 1M/4M
+sudo scripts/can_up.sh can0        # USB 어댑터, CAN FD 1M/5M
 sudo scripts/slcan_up.sh ttyACM0   # CANable, slcan0 으로 나타납니다
 sudo scripts/can_up.sh vcan0       # 하드웨어 없이 사용하는 가상 CAN
 ```
@@ -148,7 +148,7 @@ right_wrist_ft:
     can_mode:      fd_brs
     data_type:     float_combined
     rate_hz:       1000
-    set_id_can20:  0x230
+    set_id_can20:  0x430
     set_id_canfd:  0x330
 
 left_wrist_ft:
@@ -157,7 +157,7 @@ left_wrist_ft:
     can_mode:      fd_brs
     data_type:     float_combined
     rate_hz:       1000
-    set_id_can20:  0x230
+    set_id_can20:  0x430
     set_id_canfd:  0x330
 ```
 
@@ -171,7 +171,7 @@ left_wrist_ft:
 | `can_mode` | `string` | `fd_brs` | driver가 주고받을 프레임 형식입니다. `classic`·`fd`·`fd_brs` 중 하나이며, `fd_brs`는 BRS를 켜서 1 kHz를 낼 수 있습니다 |
 | `data_type` | `string` | `float_combined` | 센서가 보낼 형식입니다. 아래 표의 세 값 중 하나입니다 |
 | `rate_hz` | `int` | `1000` | 센서가 샘플을 보내는 주기입니다. `100`·`250`·`500`·`1000` 중 하나이며 단위는 Hz입니다 |
-| `set_id_can20` | `int` | `0x230` | 센서가 데이터를 보낼 때 사용할 CAN 2.0 ID이며 `0x000`~`0x7FF`입니다. [Changing the transmit ID](#changing-the-transmit-id)를 참고하십시오 |
+| `set_id_can20` | `int` | `0x430` | 센서가 데이터를 보낼 때 사용할 CAN 2.0 ID이며 `0x000`~`0x7FF`입니다. [Changing the transmit ID](#changing-the-transmit-id)를 참고하십시오 |
 | `set_id_canfd` | `int` | `0x330` | 센서가 데이터를 보낼 때 사용할 CAN FD ID이며 `0x000`~`0x7FF`입니다 |
 | `frame_id` | `string` | `<node 이름>_link` | 발행하는 wrench의 `header.frame_id`입니다. 센서를 장착한 URDF link 이름을 지정하십시오 |
 
@@ -204,9 +204,14 @@ combined 타입 두 가지는 여섯 축을 한 프레임에 담으므로 클래
 ### Changing the transmit ID
 
 `set_id_can20`과 `set_id_canfd`는 센서가 사용할 ID이며, 센서가 현재 사용하는 값을 나타내지
-않습니다. driver는 기동할 때 센서에 현재 ID를 질의하고 파일의 값과 다를 때만 변경을 전송하므로,
-값을 바꾸지 않은 채로 실행하면 센서에 아무것도 쓰지 않습니다. 센서는 이 값을 비휘발성 메모리에
-보관하므로 전원을 껐다 켜도 유지됩니다.
+않습니다. driver는 기동할 때 센서에 현재 ID를 질의하고 파일의 값과 다를 때만 변경을 전송합니다.
+센서는 이 값을 비휘발성 메모리에 보관하므로 전원을 껐다 켜도 유지되고, 값을 바꾸지 않은 채로 다시
+실행하면 센서에 아무것도 쓰지 않습니다.
+
+출고 상태의 센서는 CAN 2.0 ID로 `0x230`을 사용하며, 이 값은 AIDIN Hand Gen2의 ID와 겹칩니다
+([Sharing a channel with the AIDIN Hand Gen2](#sharing-a-channel-with-the-aidin-hand-gen2) 참고).
+따라서 기본 파일로 처음 실행하면 driver가 이 ID를 `0x430`으로 바꿉니다. `~/restore_defaults`를
+호출하면 `0x230`으로 돌아가고, 다음 실행에서 다시 바뀝니다.
 
 센서가 새 ID를 받아들이지 않으면 driver는 두 ID를 모두 적은 경고를 남기고, 기동을 실패로 처리하는
 대신 센서가 응답한 ID로 계속 읽습니다.
@@ -276,6 +281,28 @@ tool_flange_ft:
 > 센서 두 개가 CAN 인터페이스 하나를 함께 쓸 수는 없습니다. 한 프로세스는 센서 하나를 담당하며,
 > 다른 인스턴스가 이미 사용 중인 인터페이스는 열지 않고 거부합니다. 두 driver가 같은 버스에
 > 명령을 섞어 보내는 상황을 막기 위해서입니다.
+
+## Sharing a channel with the AIDIN Hand Gen2
+
+센서는 AIDIN Hand Gen2와 같은 비트 타이밍을 사용하므로, CAN 어댑터 하나의 같은 채널을 로봇 핸드와
+함께 쓸 수 있습니다. `can_interface`에 로봇 핸드의 인터페이스를 지정하고 `can_mode`는 `fd_brs`로
+둡니다. 로봇 핸드는 BRS를 켠 CAN FD로 통신하며, `fd_brs`는 센서 데이터도 같은 5 Mbit/s data 구간으로
+보내므로 로봇 핸드가 이미 사용하는 버스에서 센서 프레임이 차지하는 시간이 짧아집니다.
+
+```yaml
+right_wrist_ft:
+  ros__parameters:
+    can_interface: can0   # 오른손이 연결된 인터페이스
+    can_mode:      fd_brs
+```
+
+기본 transmit ID는 로봇 핸드의 ID와 겹치지 않습니다. 로봇 핸드는 `0x111`~`0x138`과
+`0x211`~`0x238` 범위의 ID를 사용하고, 센서는 두 ID 각각과 그 뒤의 두 ID로 보내므로 기본값에서는
+`0x430`~`0x432`와 `0x330`~`0x332`를 사용합니다. `set_id_can20`이나 `set_id_canfd`를 바꿀 때는 두
+범위가 모두 로봇 핸드의 범위를 벗어나게 하십시오.
+
+센서 두 개가 인터페이스 하나를 함께 쓸 수 없다는 규칙은 그대로입니다. 이 규칙은 센서 사이에만
+적용되므로, 로봇 핸드와는 인터페이스를 함께 써도 됩니다.
 
 ## Troubleshooting
 
