@@ -42,24 +42,18 @@ void test_can_mode()
 void test_data_type()
 {
   CHECK(is_valid_data_type("int6"));
-  CHECK(is_valid_data_type("int6_temp"));
   CHECK(is_valid_data_type("int12_combined"));
-  CHECK(is_valid_data_type("int12_combined_temp"));
   CHECK(is_valid_data_type("float_combined"));
-  CHECK(is_valid_data_type("float_combined_temp"));
 
   CHECK(!is_valid_data_type("float"));
   CHECK(!is_valid_data_type("INT6"));
   CHECK(!is_valid_data_type(""));
 
-  CHECK(data_type_names().size() == 6);
+  CHECK(data_type_names().size() == 3);
 
   CHECK(!data_type_needs_fd("int6"));
-  CHECK(!data_type_needs_fd("int6_temp"));
   CHECK(data_type_needs_fd("int12_combined"));
-  CHECK(data_type_needs_fd("int12_combined_temp"));
   CHECK(data_type_needs_fd("float_combined"));
-  CHECK(data_type_needs_fd("float_combined_temp"));
 }
 
 void test_rate_hz()
@@ -107,22 +101,20 @@ void test_defaults_are_consistent()
 
 void test_combined_types_need_fd()
 {
-  // The four combined types put six axes in one frame, which a classic frame cannot hold. This
+  // The two combined types put six axes in one frame, which a classic frame cannot hold. This
   // is the combination a user is most likely to reach by editing one line of the YAML.
   Settings s;
   s.can_mode = "classic";
 
-  for (const char * type : {"int12_combined", "int12_combined_temp",
-      "float_combined", "float_combined_temp"})
-  {
+  for (const char * type : {"int12_combined", "float_combined"}) {
     s.data_type = type;
     std::string reason;
     CHECK(!validate(s, reason));
     CHECK(!reason.empty());
   }
 
-  for (const char * type : {"int6", "int6_temp"}) {
-    s.data_type = type;
+  s.data_type = "int6";
+  {
     std::string reason;
     CHECK(validate(s, reason));
   }
