@@ -31,13 +31,24 @@ A CANable works as well. Which path it takes depends on its firmware, as
 ## Installation
 
 ```bash
-sudo ./install.sh
+sudo apt install can-utils
 colcon build --packages-up-to aidin_aft150_d50_bringup
 ```
 
-`install.sh` prepares the machine: it builds the CAN kernel drivers this distribution does not
-ship and adds you to the `dialout` group. Log out and back in once so the group membership takes
-effect.
+`can-utils` provides `slcand`, which `slcan_up.sh` needs, and `candump`, which
+[Troubleshooting](#troubleshooting) uses.
+
+The adapter's kernel driver has to be present. Check the one for your adapter.
+
+```bash
+modinfo peak_usb | head -2       # PEAK PCAN-USB FD
+modinfo gs_usb   | head -2       # CANable on candleLight firmware
+```
+
+A `filename` line means the driver is present. `Module ... not found` means the kernel lacks it:
+on a stock Ubuntu kernel run `sudo apt install linux-modules-extra-$(uname -r)`, and on a kernel
+you built yourself or a vendor kernel such as a Jetson's, enable `CONFIG_CAN_PEAK_USB` or
+`CONFIG_CAN_GS_USB` and rebuild it. A CANable on slcan firmware needs neither driver.
 
 The driver itself is a set of ROS 2 packages, so `colcon` builds it.
 
@@ -57,7 +68,7 @@ re-plug, so bring it up again after either. Use the script that matches how the 
 
 | Adapter | Appears as | Script |
 |---|---|---|
-| PCAN, IXXAT, or a CANable on candleLight firmware | `can0` in `ip -br link show type can` | `can_up.sh` |
+| A PEAK PCAN-USB FD, or a CANable on candleLight firmware | `can0` in `ip -br link show type can` | `can_up.sh` |
 | A CANable on slcan firmware | `/dev/ttyACM0` | `slcan_up.sh`, which attaches it as `slcan0` |
 
 ```bash
@@ -326,7 +337,7 @@ The driver reports the command to run whenever the interface is at fault.
 
 | Message | Cause | What to do |
 |---|---|---|
-| `there is no interface called can0` | The adapter is not plugged in, or its kernel driver is missing | `ip -br link show type can`, then `sudo ./install.sh` if the driver is missing |
+| `there is no interface called can0` | The adapter is not plugged in, or its kernel driver is missing | `ip -br link show type can`, then check the driver as [Installation](#installation) describes |
 | `can0 is down` | The interface exists but is not up | `sudo scripts/can_up.sh can0` |
 | `can0 is not set up for CAN FD (MTU 16)` | The interface is up in classic mode while `can_mode` asks for FD | Run the `ip link` command the message prints, or set `can_mode` to `classic` |
 | `another instance already holds can0` | A second driver is running on the same interface | Stop the first one, or give this sensor its own interface |
@@ -343,9 +354,3 @@ ros2 service call /right_wrist_ft/confirm_id std_srvs/srv/Trigger
 
 The response reports the IDs the sensor answered with. When the sensor does not answer at all,
 `candump can0` shows whether it is transmitting.
-
-## Third-party software
-
-`scripts/drivers/` contains the PEAK and IXXAT kernel driver sources, both under the GPL-2.0.
-[THIRD_PARTY_NOTICES.md](THIRD_PARTY_NOTICES.md) carries the notices and the modifications made to
-them.

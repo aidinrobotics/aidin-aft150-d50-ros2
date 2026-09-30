@@ -62,7 +62,7 @@ fi
 if ! ip link show "$IFACE" >/dev/null 2>&1; then
     echo "[FAIL] there is no interface called '$IFACE'." >&2
     echo "       - Check that the USB adapter is plugged in." >&2
-    echo "       - If the kernel driver is missing, run sudo ./install.sh." >&2
+    echo "       - Check that its kernel driver is present:  modinfo peak_usb  or  modinfo gs_usb" >&2
     echo "       - CAN interfaces present: $(ip -br link show type can 2>/dev/null | awk '{print $1}' | tr '\n' ' ')" >&2
     exit 1
 fi

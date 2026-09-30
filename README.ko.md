@@ -31,12 +31,24 @@ CANable도 사용할 수 있습니다. 펌웨어에 따라 연결 경로가 다�
 ## Installation
 
 ```bash
-sudo ./install.sh
+sudo apt install can-utils
 colcon build --packages-up-to aidin_aft150_d50_bringup
 ```
 
-`install.sh`는 장비를 준비합니다. 배포판에 없는 CAN 커널 드라이버를 빌드하고, 현재 사용자를
-`dialout` 그룹에 추가합니다. 그룹 권한이 적용되도록 한 번 로그아웃했다가 다시 로그인하십시오.
+`can-utils`에는 `slcan_up.sh`가 사용하는 `slcand`와 [Troubleshooting](#troubleshooting)에서 사용하는
+`candump`가 들어 있습니다.
+
+어댑터의 커널 드라이버가 있어야 합니다. 사용하는 어댑터의 드라이버를 확인합니다.
+
+```bash
+modinfo peak_usb | head -2       # PEAK PCAN-USB FD
+modinfo gs_usb   | head -2       # candleLight 펌웨어의 CANable
+```
+
+`filename` 줄이 나오면 드라이버가 있는 것입니다. `Module ... not found`가 나오면 커널에 드라이버가
+없는 것입니다. 기본 Ubuntu 커널이면 `sudo apt install linux-modules-extra-$(uname -r)`을 실행하고,
+직접 빌드한 커널이나 Jetson 같은 vendor 커널이면 `CONFIG_CAN_PEAK_USB` 또는 `CONFIG_CAN_GS_USB`를
+켜고 커널을 다시 빌드합니다. slcan 펌웨어의 CANable은 두 드라이버가 모두 필요 없습니다.
 
 driver 자체는 ROS 2 package이므로 `colcon`으로 빌드합니다.
 
@@ -56,7 +68,7 @@ driver를 실행하기 전에 인터페이스를 준비합니다. 이 설정은 
 
 | Adapter | Appears as | Script |
 |---|---|---|
-| PCAN, IXXAT, candleLight 펌웨어의 CANable | `ip -br link show type can`의 `can0` | `can_up.sh` |
+| PEAK PCAN-USB FD, candleLight 펌웨어의 CANable | `ip -br link show type can`의 `can0` | `can_up.sh` |
 | slcan 펌웨어의 CANable | `/dev/ttyACM0` | `slcan_up.sh`가 `slcan0`으로 연결합니다 |
 
 ```bash
@@ -323,7 +335,7 @@ right_wrist_ft:
 
 | Message | 원인 | 조치 |
 |---|---|---|
-| `there is no interface called can0` | 어댑터가 연결되지 않았거나 커널 드라이버가 없습니다 | `ip -br link show type can`으로 확인하고, 드라이버가 없으면 `sudo ./install.sh`를 실행합니다 |
+| `there is no interface called can0` | 어댑터가 연결되지 않았거나 커널 드라이버가 없습니다 | `ip -br link show type can`으로 확인하고, [Installation](#installation)에 따라 드라이버를 확인합니다 |
 | `can0 is down` | 인터페이스는 있지만 준비되지 않았습니다 | `sudo scripts/can_up.sh can0` |
 | `can0 is not set up for CAN FD (MTU 16)` | `can_mode`는 FD를 요구하는데 인터페이스가 클래식으로 준비되어 있습니다 | message에 표시된 `ip link` 명령을 실행하거나 `can_mode`를 `classic`으로 바꿉니다 |
 | `another instance already holds can0` | 같은 인터페이스에서 다른 driver가 작동 중입니다 | 먼저 실행한 쪽을 종료하거나, 이 센서에 별도 인터페이스를 지정합니다 |
@@ -340,8 +352,3 @@ ros2 service call /right_wrist_ft/confirm_id std_srvs/srv/Trigger
 
 응답에 센서가 답한 ID가 들어 있습니다. 센서가 응답하지 않으면 `candump can0`으로 센서가 프레임을
 보내고 있는지 확인합니다.
-
-## Third-party software
-
-`scripts/drivers/`에 PEAK와 IXXAT 커널 드라이버 소스가 들어 있으며 둘 다 GPL-2.0입니다. 고지와
-변경 사항은 [THIRD_PARTY_NOTICES.md](THIRD_PARTY_NOTICES.md)에 있습니다.
