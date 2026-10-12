@@ -172,7 +172,7 @@ right_wrist_ft:
     can_interface: can0
     can_mode:      fd_brs
     data_type:     float_combined
-    rate_hz:       1000
+    rate_hz:       250
     set_id_can20:  0x430
     set_id_canfd:  0x330
 
@@ -181,7 +181,7 @@ left_wrist_ft:
     can_interface: can1
     can_mode:      fd_brs
     data_type:     float_combined
-    rate_hz:       1000
+    rate_hz:       250
     set_id_can20:  0x430
     set_id_canfd:  0x330
 ```
@@ -195,7 +195,7 @@ left_wrist_ft:
 | `can_interface` | `string` | `can0` | 열 SocketCAN 인터페이스 이름이며 `ip link`가 표시하는 이름과 같습니다. 이미 준비된 상태여야 합니다 |
 | `can_mode` | `string` | `fd_brs` | driver가 주고받을 프레임 형식입니다. `classic`·`fd`·`fd_brs` 중 하나이며, `fd_brs`는 BRS를 켜서 1 kHz를 낼 수 있습니다 |
 | `data_type` | `string` | `float_combined` | 센서가 보낼 형식입니다. 아래 표의 세 값 중 하나입니다 |
-| `rate_hz` | `int` | `1000` | 센서가 샘플을 보내는 주기입니다. `100`·`250`·`500`·`1000` 중 하나이며 단위는 Hz입니다 |
+| `rate_hz` | `int` | `250` | 센서가 샘플을 보내는 주기이며 단위는 Hz입니다. 최대 1000 Hz까지 `100`·`250`·`500`·`1000` 중에서 고릅니다 |
 | `set_id_can20` | `int` | `0x430` | 센서가 데이터를 보낼 때 사용할 CAN 2.0 ID이며 `0x000`~`0x7FF`입니다. [Changing the transmit ID](#changing-the-transmit-id)를 참고하십시오 |
 | `set_id_canfd` | `int` | `0x330` | 센서가 데이터를 보낼 때 사용할 CAN FD ID이며 `0x000`~`0x7FF`입니다 |
 | `frame_id` | `string` | `<node 이름>_link` | 발행하는 wrench의 `header.frame_id`입니다. 센서를 장착한 URDF link 이름을 지정하십시오 |
@@ -286,7 +286,7 @@ ros2 service call /right_wrist_ft/set_bias std_srvs/srv/Trigger
   ros__parameters:
     can_mode:  fd_brs
     data_type: float_combined
-    rate_hz:   1000
+    rate_hz:   250
 
 right_wrist_ft:
   ros__parameters:

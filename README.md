@@ -172,7 +172,7 @@ right_wrist_ft:
     can_interface: can0
     can_mode:      fd_brs
     data_type:     float_combined
-    rate_hz:       1000
+    rate_hz:       250
     set_id_can20:  0x430
     set_id_canfd:  0x330
 
@@ -181,7 +181,7 @@ left_wrist_ft:
     can_interface: can1
     can_mode:      fd_brs
     data_type:     float_combined
-    rate_hz:       1000
+    rate_hz:       250
     set_id_can20:  0x430
     set_id_canfd:  0x330
 ```
@@ -196,7 +196,7 @@ and what they must not.
 | `can_interface` | `string` | `can0` | Name of the SocketCAN interface to open, as `ip link` lists it. The interface must already be up |
 | `can_mode` | `string` | `fd_brs` | Frame format the driver sends and expects: `classic`, `fd` or `fd_brs`. `fd_brs` adds the bitrate switch, which is what reaches 1 kHz |
 | `data_type` | `string` | `float_combined` | What the sensor transmits. One of the three values in the table below |
-| `rate_hz` | `int` | `1000` | How often the sensor transmits a sample, in Hz: `100`, `250`, `500` or `1000` |
+| `rate_hz` | `int` | `250` | How often the sensor transmits a sample, up to 1000 Hz: `100`, `250`, `500` or `1000` |
 | `set_id_can20` | `int` | `0x430` | CAN 2.0 ID the sensor transmits on, `0x000`–`0x7FF`. See [Changing the transmit ID](#changing-the-transmit-id) |
 | `set_id_canfd` | `int` | `0x330` | CAN FD ID the sensor transmits on, `0x000`–`0x7FF` |
 | `frame_id` | `string` | `<node name>_link` | `header.frame_id` of the published wrench. Set it to the URDF link the sensor is mounted on |
@@ -287,7 +287,7 @@ file. Only what differs then stays in the individual blocks.
   ros__parameters:
     can_mode:  fd_brs
     data_type: float_combined
-    rate_hz:   1000
+    rate_hz:   250
 
 right_wrist_ft:
   ros__parameters:
