@@ -233,10 +233,9 @@ combined 타입 두 가지는 여섯 축을 한 프레임에 담으므로 클래
 센서는 이 값을 비휘발성 메모리에 보관하므로 전원을 껐다 켜도 유지되고, 값을 바꾸지 않은 채로 다시
 실행하면 센서에 아무것도 쓰지 않습니다.
 
-출고 상태의 센서는 CAN 2.0 ID로 `0x230`을 사용하며, 이 값은 AIDIN Hand Gen2의 ID와 겹칩니다
-([Sharing a channel with the AIDIN Hand Gen2](#sharing-a-channel-with-the-aidin-hand-gen2) 참고).
-따라서 기본 파일로 처음 실행하면 driver가 이 ID를 `0x430`으로 바꿉니다. `~/restore_defaults`를
-호출하면 `0x230`으로 돌아가고, 다음 실행에서 다시 바뀝니다.
+출고 상태의 센서는 CAN 2.0 ID로 `0x430`, CAN FD ID로 `0x330`을 사용하며, 두 값은
+`set_id_can20`과 `set_id_canfd`의 기본값과 같습니다. 따라서 기본 파일로 실행하면 driver는 새 센서에
+ID를 쓰지 않고, `~/restore_defaults`를 호출해도 센서는 같은 두 ID로 돌아갑니다.
 
 센서가 새 ID를 받아들이지 않으면 driver는 두 ID를 모두 적은 경고를 남기고, 기동을 실패로 처리하는
 대신 센서가 응답한 ID로 계속 읽습니다.

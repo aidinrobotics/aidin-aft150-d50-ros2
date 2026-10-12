@@ -234,10 +234,9 @@ now. At startup the driver asks the sensor for its current IDs and sends a chang
 differ. The sensor keeps the value in non-volatile memory, so it survives a power cycle, and
 launching again with an unchanged file writes nothing to the sensor.
 
-A sensor leaves the factory transmitting CAN 2.0 on `0x230`, which overlaps the IDs of an AIDIN
-Hand Gen2 (see [Sharing a channel with the AIDIN Hand Gen2](#sharing-a-channel-with-the-aidin-hand-gen2)).
-The first launch with the default file therefore moves it to `0x430`. `~/restore_defaults` returns
-it to `0x230`, and the next launch moves it again.
+A sensor leaves the factory transmitting on `0x430` for CAN 2.0 and `0x330` for CAN FD, which are
+the defaults of `set_id_can20` and `set_id_canfd`. The default file therefore writes nothing to a
+new sensor, and `~/restore_defaults` returns the sensor to the same two IDs.
 
 When the sensor does not adopt the new ID, the driver logs a warning naming both IDs and carries
 on reading with the one the sensor reported, rather than refusing to start.

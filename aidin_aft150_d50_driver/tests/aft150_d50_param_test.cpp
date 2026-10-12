@@ -87,7 +87,7 @@ void test_set_id_range()
   CHECK(!is_valid_set_id(0x10000));
 
   // Overlapping windows and command-ID collisions pass, on purpose.
-  CHECK(is_valid_set_id(0x220));
+  CHECK(is_valid_set_id(0x420));
   CHECK(is_valid_set_id(0x331));
 }
 
