@@ -1,5 +1,5 @@
 #!/usr/bin/env bash
-# Packs a release tarball: the four packages, the setup scripts and the prebuilt archives.
+# Packs a release tarball: the four packages and the prebuilt archives.
 #
 #   ./tools/make_release.sh              into dist/
 #   ./tools/make_release.sh /some/where  into that directory
@@ -39,7 +39,7 @@ echo "  architectures: ${SHIPPED[*]}"
 
 mkdir -p "${STAGE}/${NAME}"
 for item in aidin_aft150_d50_driver aidin_aft150_d50_hardware aidin_aft150_d50_description \
-            aidin_aft150_d50_bringup scripts docs \
+            aidin_aft150_d50_bringup docs \
             README.md README.ko.md CHANGELOG.md; do
   [ -e "${HERE}/${item}" ] || { echo "FAIL: ${item} is missing" >&2; exit 1; }
   cp -r "${HERE}/${item}" "${STAGE}/${NAME}/"

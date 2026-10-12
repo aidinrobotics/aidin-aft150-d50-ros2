@@ -25,8 +25,7 @@ AIDIN AFT150-D50 6축 힘·토크 센서를 SocketCAN으로 읽는 ROS 2 driver�
 | ROS 2 | Humble |
 | CAN interface | USB CAN-FD 어댑터(SocketCAN), nominal 1 Mbit/s, data 구간 5 Mbit/s |
 
-CANable도 사용할 수 있습니다. 펌웨어에 따라 연결 경로가 다르며,
-[Setting up the CAN interface](#setting-up-the-can-interface)에서 설명합니다.
+candleLight 펌웨어의 CANable도 사용할 수 있습니다.
 
 ## Installation
 
@@ -35,8 +34,7 @@ sudo apt install can-utils
 colcon build --packages-up-to aidin_aft150_d50_bringup
 ```
 
-`can-utils`에는 `slcan_up.sh`가 사용하는 `slcand`와 [Troubleshooting](#troubleshooting)에서 사용하는
-`candump`가 들어 있습니다.
+`can-utils`에는 [Troubleshooting](#troubleshooting)에서 사용하는 `candump`가 들어 있습니다.
 
 어댑터의 커널 드라이버가 있어야 합니다. 사용하는 어댑터의 드라이버를 확인합니다.
 
@@ -48,7 +46,7 @@ modinfo gs_usb   | head -2       # candleLight 펌웨어의 CANable
 `filename` 줄이 나오면 드라이버가 있는 것입니다. `Module ... not found`가 나오면 커널에 드라이버가
 없는 것입니다. 기본 Ubuntu 커널이면 `sudo apt install linux-modules-extra-$(uname -r)`을 실행하고,
 직접 빌드한 커널이나 Jetson 같은 vendor 커널이면 `CONFIG_CAN_PEAK_USB` 또는 `CONFIG_CAN_GS_USB`를
-켜고 커널을 다시 빌드합니다. slcan 펌웨어의 CANable은 두 드라이버가 모두 필요 없습니다.
+켜고 커널을 다시 빌드합니다.
 
 driver 자체는 ROS 2 package이므로 `colcon`으로 빌드합니다.
 
@@ -64,36 +62,34 @@ driver 자체는 ROS 2 package이므로 `colcon`으로 빌드합니다.
 ## Setting up the CAN interface
 
 driver를 실행하기 전에 인터페이스를 준비합니다. 이 설정은 재부팅하거나 어댑터를 다시 연결하면
-사라지므로, 그때마다 다시 준비해야 합니다. 어댑터가 나타나는 형태에 맞는 스크립트를 실행합니다.
-
-| Adapter | Appears as | Script |
-|---|---|---|
-| PEAK PCAN-USB FD, candleLight 펌웨어의 CANable | `ip -br link show type can`의 `can0` | `can_up.sh` |
-| slcan 펌웨어의 CANable | `/dev/ttyACM0` | `slcan_up.sh`가 `slcan0`으로 연결합니다 |
+사라지므로, 그때마다 다시 준비해야 합니다. 아래 명령은 인터페이스를 센서의 공장 설정인
+CAN FD(nominal 1 Mbit/s, data 구간 5 Mbit/s)로 준비합니다. `can0`은 `ip -br link show type can`에
+표시되는 어댑터의 이름으로 바꾸십시오.
 
 ```bash
-sudo scripts/can_up.sh can0        # can0 으로 나타나는 어댑터
-sudo scripts/slcan_up.sh ttyACM0   # slcan 펌웨어의 CANable, slcan0 으로 연결됩니다
-sudo scripts/can_up.sh vcan0       # 하드웨어 없이 사용하는 가상 CAN
+sudo ip link set can0 down 2>/dev/null || true
+sudo ip link set can0 type can \
+  bitrate 1000000 sample-point 0.875 sjw 10 \
+  dbitrate 5000000 dsample-point 0.875 dsjw 2 \
+  fd on
+sudo ip link set can0 up
+sudo ip link set can0 txqueuelen 1000
 ```
 
-`can_up.sh`는 센서의 공장 설정인 CAN FD(nominal 1 Mbit/s, data 구간 5 Mbit/s)를 먼저 요청하고,
-어댑터가 거부하면 클래식 CAN 2.0으로 설정합니다. 5 Mbit/s를 낼 수 있는지는 어댑터와 펌웨어에 따라
-다르므로, 스크립트가 출력하는 줄을 확인하십시오.
+인터페이스가 CAN FD로 준비되었는지 확인합니다.
+
+```bash
+ip -details link show can0
+```
 
 ```text
-[OK] can0 is ready — CAN FD  nominal=1000000@0.875 sjw=10  data=5000000@0.875 dsjw=2
+can <FD> state ERROR-ACTIVE (berr-counter tx 0 rx 0)
 ```
 
-이 줄에 `CAN 2.0`이 표시되면 어댑터가 클래식 CAN만 받아들인 것입니다. 이때 센서는
-`can_mode: classic`과 `int6` 데이터 타입을 사용해야 합니다.
+이 줄에 `<FD>`가 표시되면 인터페이스가 CAN FD 프레임을 전달합니다.
 
 driver는 이미 준비된 인터페이스를 열기만 합니다. 인터페이스를 직접 설정하지 않으며, 인터페이스가
 없거나 내려가 있으면 실행할 명령을 알려 줍니다.
-
-> [!IMPORTANT]
-> slcan 펌웨어의 CANable은 클래식 CAN 2.0만 전달합니다. 프레임이 8바이트까지이므로 이 경로로
-> 연결한 센서는 `int6` 데이터 타입을 사용해야 합니다. combined 타입은 CAN FD가 필요합니다.
 
 ## Running the driver
 
@@ -335,7 +331,7 @@ right_wrist_ft:
 | Message | 원인 | 조치 |
 |---|---|---|
 | `there is no interface called can0` | 어댑터가 연결되지 않았거나 커널 드라이버가 없습니다 | `ip -br link show type can`으로 확인하고, [Installation](#installation)에 따라 드라이버를 확인합니다 |
-| `can0 is down` | 인터페이스는 있지만 준비되지 않았습니다 | `sudo scripts/can_up.sh can0` |
+| `can0 is down` | 인터페이스는 있지만 준비되지 않았습니다 | [Setting up the CAN interface](#setting-up-the-can-interface)의 명령을 실행합니다 |
 | `can0 is not set up for CAN FD (MTU 16)` | `can_mode`는 FD를 요구하는데 인터페이스가 클래식으로 준비되어 있습니다 | message에 표시된 `ip link` 명령을 실행하거나 `can_mode`를 `classic`으로 바꿉니다 |
 | `another instance already holds can0` | 같은 인터페이스에서 다른 driver가 작동 중입니다 | 먼저 실행한 쪽을 종료하거나, 이 센서에 별도 인터페이스를 지정합니다 |
 | `this data type puts six axes in one frame and needs CAN FD` | combined 계열 `data_type`을 `can_mode: classic`과 함께 설정했습니다 | `int6`를 사용하거나 `can_mode`를 `fd_brs`로 바꿉니다 |
