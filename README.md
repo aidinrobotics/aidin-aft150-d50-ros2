@@ -25,8 +25,7 @@ We verify that the driver builds and runs on the configuration below.
 | ROS 2 | Humble |
 | CAN interface | USB CAN-FD adapter (SocketCAN), 1 Mbit/s nominal, 5 Mbit/s data phase |
 
-A CANable works as well. Which path it takes depends on its firmware, as
-[Setting up the CAN interface](#setting-up-the-can-interface) describes.
+A CANable on candleLight firmware works as well.
 
 ## Installation
 
@@ -35,8 +34,7 @@ sudo apt install can-utils
 colcon build --packages-up-to aidin_aft150_d50_bringup
 ```
 
-`can-utils` provides `slcand`, which `slcan_up.sh` needs, and `candump`, which
-[Troubleshooting](#troubleshooting) uses.
+`can-utils` provides `candump`, which [Troubleshooting](#troubleshooting) uses.
 
 The adapter's kernel driver has to be present. Check the one for your adapter.
 
@@ -48,7 +46,7 @@ modinfo gs_usb   | head -2       # CANable on candleLight firmware
 A `filename` line means the driver is present. `Module ... not found` means the kernel lacks it:
 on a stock Ubuntu kernel run `sudo apt install linux-modules-extra-$(uname -r)`, and on a kernel
 you built yourself or a vendor kernel such as a Jetson's, enable `CONFIG_CAN_PEAK_USB` or
-`CONFIG_CAN_GS_USB` and rebuild it. A CANable on slcan firmware needs neither driver.
+`CONFIG_CAN_GS_USB` and rebuild it.
 
 The driver itself is a set of ROS 2 packages, so `colcon` builds it.
 
@@ -64,36 +62,34 @@ All four packages share one version number and are released together.
 ## Setting up the CAN interface
 
 Bring the interface up before starting the driver. The setting does not survive a reboot or a
-re-plug, so bring it up again after either. Use the script that matches how the adapter appears.
-
-| Adapter | Appears as | Script |
-|---|---|---|
-| A PEAK PCAN-USB FD, or a CANable on candleLight firmware | `can0` in `ip -br link show type can` | `can_up.sh` |
-| A CANable on slcan firmware | `/dev/ttyACM0` | `slcan_up.sh`, which attaches it as `slcan0` |
+re-plug, so bring it up again after either. The commands below set the sensor's factory timing,
+CAN FD at 1 Mbit/s nominal and 5 Mbit/s data phase. Replace `can0` with the name that
+`ip -br link show type can` lists for the adapter.
 
 ```bash
-sudo scripts/can_up.sh can0        # an adapter that appears as can0
-sudo scripts/slcan_up.sh ttyACM0   # a CANable on slcan firmware, attached as slcan0
-sudo scripts/can_up.sh vcan0       # virtual CAN, with no hardware
+sudo ip link set can0 down 2>/dev/null || true
+sudo ip link set can0 type can \
+  bitrate 1000000 sample-point 0.875 sjw 10 \
+  dbitrate 5000000 dsample-point 0.875 dsjw 2 \
+  fd on
+sudo ip link set can0 up
+sudo ip link set can0 txqueuelen 1000
 ```
 
-`can_up.sh` asks for the sensor's factory timing, CAN FD at 1 Mbit/s nominal and 5 Mbit/s data
-phase, and falls back to classic CAN 2.0 when the adapter refuses it. Whether an adapter reaches
-5 Mbit/s depends on the adapter and its firmware, so check the line the script prints.
+Check that the interface is up in CAN FD.
+
+```bash
+ip -details link show can0
+```
 
 ```text
-[OK] can0 is ready — CAN FD  nominal=1000000@0.875 sjw=10  data=5000000@0.875 dsjw=2
+can <FD> state ERROR-ACTIVE (berr-counter tx 0 rx 0)
 ```
 
-A line that reads `CAN 2.0` instead means the adapter took classic CAN only. The sensor then needs
-`can_mode: classic` and the `int6` data type.
+`<FD>` in this line means the interface carries CAN FD frames.
 
 The driver opens an interface that is already up. It does not configure the link itself, and it
 reports the command to run when the interface is missing or down.
-
-> [!IMPORTANT]
-> A CANable on slcan firmware carries classic CAN 2.0 only. Its frames hold eight bytes, so a
-> sensor reached through one must use the `int6` data type. The combined types need CAN FD.
 
 ## Running the driver
 
@@ -172,7 +168,7 @@ right_wrist_ft:
     can_interface: can0
     can_mode:      fd_brs
     data_type:     float_combined
-    rate_hz:       1000
+    rate_hz:       250
     set_id_can20:  0x430
     set_id_canfd:  0x330
 
@@ -181,7 +177,7 @@ left_wrist_ft:
     can_interface: can1
     can_mode:      fd_brs
     data_type:     float_combined
-    rate_hz:       1000
+    rate_hz:       250
     set_id_can20:  0x430
     set_id_canfd:  0x330
 ```
@@ -196,7 +192,7 @@ and what they must not.
 | `can_interface` | `string` | `can0` | Name of the SocketCAN interface to open, as `ip link` lists it. The interface must already be up |
 | `can_mode` | `string` | `fd_brs` | Frame format the driver sends and expects: `classic`, `fd` or `fd_brs`. `fd_brs` adds the bitrate switch, which is what reaches 1 kHz |
 | `data_type` | `string` | `float_combined` | What the sensor transmits. One of the three values in the table below |
-| `rate_hz` | `int` | `1000` | How often the sensor transmits a sample, in Hz: `100`, `250`, `500` or `1000` |
+| `rate_hz` | `int` | `250` | How often the sensor transmits a sample, up to 1000 Hz: `100`, `250`, `500` or `1000` |
 | `set_id_can20` | `int` | `0x430` | CAN 2.0 ID the sensor transmits on, `0x000`–`0x7FF`. See [Changing the transmit ID](#changing-the-transmit-id) |
 | `set_id_canfd` | `int` | `0x330` | CAN FD ID the sensor transmits on, `0x000`–`0x7FF` |
 | `frame_id` | `string` | `<node name>_link` | `header.frame_id` of the published wrench. Set it to the URDF link the sensor is mounted on |
@@ -234,10 +230,9 @@ now. At startup the driver asks the sensor for its current IDs and sends a chang
 differ. The sensor keeps the value in non-volatile memory, so it survives a power cycle, and
 launching again with an unchanged file writes nothing to the sensor.
 
-A sensor leaves the factory transmitting CAN 2.0 on `0x230`, which overlaps the IDs of an AIDIN
-Hand Gen2 (see [Sharing a channel with the AIDIN Hand Gen2](#sharing-a-channel-with-the-aidin-hand-gen2)).
-The first launch with the default file therefore moves it to `0x430`. `~/restore_defaults` returns
-it to `0x230`, and the next launch moves it again.
+A sensor leaves the factory transmitting on `0x430` for CAN 2.0 and `0x330` for CAN FD, which are
+the defaults of `set_id_can20` and `set_id_canfd`. The default file therefore writes nothing to a
+new sensor, and `~/restore_defaults` returns the sensor to the same two IDs.
 
 When the sensor does not adopt the new ID, the driver logs a warning naming both IDs and carries
 on reading with the one the sensor reported, rather than refusing to start.
@@ -288,7 +283,7 @@ file. Only what differs then stays in the individual blocks.
   ros__parameters:
     can_mode:  fd_brs
     data_type: float_combined
-    rate_hz:   1000
+    rate_hz:   250
 
 right_wrist_ft:
   ros__parameters:
@@ -338,7 +333,7 @@ The driver reports the command to run whenever the interface is at fault.
 | Message | Cause | What to do |
 |---|---|---|
 | `there is no interface called can0` | The adapter is not plugged in, or its kernel driver is missing | `ip -br link show type can`, then check the driver as [Installation](#installation) describes |
-| `can0 is down` | The interface exists but is not up | `sudo scripts/can_up.sh can0` |
+| `can0 is down` | The interface exists but is not up | Run the commands in [Setting up the CAN interface](#setting-up-the-can-interface) |
 | `can0 is not set up for CAN FD (MTU 16)` | The interface is up in classic mode while `can_mode` asks for FD | Run the `ip link` command the message prints, or set `can_mode` to `classic` |
 | `another instance already holds can0` | A second driver is running on the same interface | Stop the first one, or give this sensor its own interface |
 | `this data type puts six axes in one frame and needs CAN FD` | A combined `data_type` with `can_mode: classic` | Use the `int6` data type, or switch `can_mode` to `fd_brs` |

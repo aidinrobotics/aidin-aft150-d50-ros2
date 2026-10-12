@@ -41,10 +41,10 @@ parameters on both paths.
   boot path. When the sensor does not adopt the new ID, the driver warns and keeps reading on the
   ID the sensor reported instead of refusing to start.
 - **The sensor can share a CAN channel with an AIDIN Hand Gen2.** It uses the robot hand's bit
-  timing, and `set_id_can20` defaults to `0x430` rather than the factory `0x230`, because the
-  factory range `0x230`–`0x232` overlaps the tactile IDs of the left hand. The first launch
-  therefore moves a new sensor to `0x430` once. Keep `can_mode` at `fd_brs` on a shared channel,
-  because the robot hand runs CAN FD with the bitrate switch.
+  timing, and its CAN 2.0 IDs, `0x420` for commands and `0x430`–`0x432` for data, stay clear of
+  the robot hand's `0x111`–`0x138` and `0x211`–`0x238`. These are the sensor's factory IDs and the
+  defaults of the parameter file, so the driver writes no ID to a new sensor. Keep `can_mode` at
+  `fd_brs` on a shared channel, because the robot hand runs CAN FD with the bitrate switch.
 - **Three services cover the actions that carry no value: `~/set_bias`, `~/confirm_id` and
   `~/restore_defaults`.** All three are `std_srvs/srv/Trigger`, so the driver defines no service
   types of its own and `rosidl` stays out of the build. Anything that carries a value is a
@@ -55,13 +55,12 @@ parameters on both paths.
 - **One parameter file describes any number of sensors.** Each top-level block is one sensor and
   the key is its node name, so adding a sensor means adding a block. Both launch files read the
   same file, and neither imposes a fixed left and right.
-- **`scripts/can_up.sh` and `scripts/slcan_up.sh` bring an interface up by hand, as the AIDIN
-  Hand Gen2's is.** `can_up.sh` asks for the robot hand's timing, CAN FD at 1 Mbit/s nominal and
-  5 Mbit/s data phase with both sample points at 87.5%, and falls back to classic CAN 2.0 when the
-  adapter refuses it, because not every adapter or firmware reaches 5 Mbit/s. `slcan_up.sh`
-  attaches a CANable on slcan firmware through `slcand`. Nothing brings an interface up on its
-  own, so run the script again after a reboot or a re-plug. The adapter needs only the kernel's
-  own driver, `peak_usb` for a PEAK PCAN-USB FD or `gs_usb` for a CANable on candleLight firmware.
+- **The README brings the CAN interface up with the same `ip link` commands as the AIDIN Hand
+  Gen2.** They set the robot hand's timing, CAN FD at 1 Mbit/s nominal and 5 Mbit/s data phase
+  with both sample points at 87.5%, so one procedure serves both on a shared adapter. Nothing
+  brings an interface up on its own, so run the commands again after a reboot or a re-plug. The
+  adapter needs only the kernel's own driver, `peak_usb` for a PEAK PCAN-USB FD or `gs_usb` for a
+  CANable on candleLight firmware.
 - **The driver refuses to open an interface another instance already holds.** Starting the
   standalone node and the `ros2_control` component on the same sensor would interleave their
   commands, and the second one now fails to start with a message that says so.

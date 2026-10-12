@@ -9,7 +9,7 @@
   <xacro:arg name="can_interface" default="can0"/>
   <xacro:arg name="can_mode" default="fd_brs"/>
   <xacro:arg name="data_type" default="float_combined"/>
-  <xacro:arg name="rate_hz" default="1000"/>
+  <xacro:arg name="rate_hz" default="250"/>
 
   <xacro:include filename="$(find aidin_aft150_d50_description)/urdf/aft150_d50.ros2_control.xacro"/>
 

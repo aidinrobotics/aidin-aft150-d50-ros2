@@ -25,8 +25,7 @@ AIDIN AFT150-D50 6축 힘·토크 센서를 SocketCAN으로 읽는 ROS 2 driver�
 | ROS 2 | Humble |
 | CAN interface | USB CAN-FD 어댑터(SocketCAN), nominal 1 Mbit/s, data 구간 5 Mbit/s |
 
-CANable도 사용할 수 있습니다. 펌웨어에 따라 연결 경로가 다르며,
-[Setting up the CAN interface](#setting-up-the-can-interface)에서 설명합니다.
+candleLight 펌웨어의 CANable도 사용할 수 있습니다.
 
 ## Installation
 
@@ -35,8 +34,7 @@ sudo apt install can-utils
 colcon build --packages-up-to aidin_aft150_d50_bringup
 ```
 
-`can-utils`에는 `slcan_up.sh`가 사용하는 `slcand`와 [Troubleshooting](#troubleshooting)에서 사용하는
-`candump`가 들어 있습니다.
+`can-utils`에는 [Troubleshooting](#troubleshooting)에서 사용하는 `candump`가 들어 있습니다.
 
 어댑터의 커널 드라이버가 있어야 합니다. 사용하는 어댑터의 드라이버를 확인합니다.
 
@@ -48,7 +46,7 @@ modinfo gs_usb   | head -2       # candleLight 펌웨어의 CANable
 `filename` 줄이 나오면 드라이버가 있는 것입니다. `Module ... not found`가 나오면 커널에 드라이버가
 없는 것입니다. 기본 Ubuntu 커널이면 `sudo apt install linux-modules-extra-$(uname -r)`을 실행하고,
 직접 빌드한 커널이나 Jetson 같은 vendor 커널이면 `CONFIG_CAN_PEAK_USB` 또는 `CONFIG_CAN_GS_USB`를
-켜고 커널을 다시 빌드합니다. slcan 펌웨어의 CANable은 두 드라이버가 모두 필요 없습니다.
+켜고 커널을 다시 빌드합니다.
 
 driver 자체는 ROS 2 package이므로 `colcon`으로 빌드합니다.
 
@@ -64,36 +62,34 @@ driver 자체는 ROS 2 package이므로 `colcon`으로 빌드합니다.
 ## Setting up the CAN interface
 
 driver를 실행하기 전에 인터페이스를 준비합니다. 이 설정은 재부팅하거나 어댑터를 다시 연결하면
-사라지므로, 그때마다 다시 준비해야 합니다. 어댑터가 나타나는 형태에 맞는 스크립트를 실행합니다.
-
-| Adapter | Appears as | Script |
-|---|---|---|
-| PEAK PCAN-USB FD, candleLight 펌웨어의 CANable | `ip -br link show type can`의 `can0` | `can_up.sh` |
-| slcan 펌웨어의 CANable | `/dev/ttyACM0` | `slcan_up.sh`가 `slcan0`으로 연결합니다 |
+사라지므로, 그때마다 다시 준비해야 합니다. 아래 명령은 인터페이스를 센서의 공장 설정인
+CAN FD(nominal 1 Mbit/s, data 구간 5 Mbit/s)로 준비합니다. `can0`은 `ip -br link show type can`에
+표시되는 어댑터의 이름으로 바꾸십시오.
 
 ```bash
-sudo scripts/can_up.sh can0        # can0 으로 나타나는 어댑터
-sudo scripts/slcan_up.sh ttyACM0   # slcan 펌웨어의 CANable, slcan0 으로 연결됩니다
-sudo scripts/can_up.sh vcan0       # 하드웨어 없이 사용하는 가상 CAN
+sudo ip link set can0 down 2>/dev/null || true
+sudo ip link set can0 type can \
+  bitrate 1000000 sample-point 0.875 sjw 10 \
+  dbitrate 5000000 dsample-point 0.875 dsjw 2 \
+  fd on
+sudo ip link set can0 up
+sudo ip link set can0 txqueuelen 1000
 ```
 
-`can_up.sh`는 센서의 공장 설정인 CAN FD(nominal 1 Mbit/s, data 구간 5 Mbit/s)를 먼저 요청하고,
-어댑터가 거부하면 클래식 CAN 2.0으로 설정합니다. 5 Mbit/s를 낼 수 있는지는 어댑터와 펌웨어에 따라
-다르므로, 스크립트가 출력하는 줄을 확인하십시오.
+인터페이스가 CAN FD로 준비되었는지 확인합니다.
+
+```bash
+ip -details link show can0
+```
 
 ```text
-[OK] can0 is ready — CAN FD  nominal=1000000@0.875 sjw=10  data=5000000@0.875 dsjw=2
+can <FD> state ERROR-ACTIVE (berr-counter tx 0 rx 0)
 ```
 
-이 줄에 `CAN 2.0`이 표시되면 어댑터가 클래식 CAN만 받아들인 것입니다. 이때 센서는
-`can_mode: classic`과 `int6` 데이터 타입을 사용해야 합니다.
+이 줄에 `<FD>`가 표시되면 인터페이스가 CAN FD 프레임을 전달합니다.
 
 driver는 이미 준비된 인터페이스를 열기만 합니다. 인터페이스를 직접 설정하지 않으며, 인터페이스가
 없거나 내려가 있으면 실행할 명령을 알려 줍니다.
-
-> [!IMPORTANT]
-> slcan 펌웨어의 CANable은 클래식 CAN 2.0만 전달합니다. 프레임이 8바이트까지이므로 이 경로로
-> 연결한 센서는 `int6` 데이터 타입을 사용해야 합니다. combined 타입은 CAN FD가 필요합니다.
 
 ## Running the driver
 
@@ -172,7 +168,7 @@ right_wrist_ft:
     can_interface: can0
     can_mode:      fd_brs
     data_type:     float_combined
-    rate_hz:       1000
+    rate_hz:       250
     set_id_can20:  0x430
     set_id_canfd:  0x330
 
@@ -181,7 +177,7 @@ left_wrist_ft:
     can_interface: can1
     can_mode:      fd_brs
     data_type:     float_combined
-    rate_hz:       1000
+    rate_hz:       250
     set_id_can20:  0x430
     set_id_canfd:  0x330
 ```
@@ -195,7 +191,7 @@ left_wrist_ft:
 | `can_interface` | `string` | `can0` | 열 SocketCAN 인터페이스 이름이며 `ip link`가 표시하는 이름과 같습니다. 이미 준비된 상태여야 합니다 |
 | `can_mode` | `string` | `fd_brs` | driver가 주고받을 프레임 형식입니다. `classic`·`fd`·`fd_brs` 중 하나이며, `fd_brs`는 BRS를 켜서 1 kHz를 낼 수 있습니다 |
 | `data_type` | `string` | `float_combined` | 센서가 보낼 형식입니다. 아래 표의 세 값 중 하나입니다 |
-| `rate_hz` | `int` | `1000` | 센서가 샘플을 보내는 주기입니다. `100`·`250`·`500`·`1000` 중 하나이며 단위는 Hz입니다 |
+| `rate_hz` | `int` | `250` | 센서가 샘플을 보내는 주기이며 단위는 Hz입니다. 최대 1000 Hz까지 `100`·`250`·`500`·`1000` 중에서 고릅니다 |
 | `set_id_can20` | `int` | `0x430` | 센서가 데이터를 보낼 때 사용할 CAN 2.0 ID이며 `0x000`~`0x7FF`입니다. [Changing the transmit ID](#changing-the-transmit-id)를 참고하십시오 |
 | `set_id_canfd` | `int` | `0x330` | 센서가 데이터를 보낼 때 사용할 CAN FD ID이며 `0x000`~`0x7FF`입니다 |
 | `frame_id` | `string` | `<node 이름>_link` | 발행하는 wrench의 `header.frame_id`입니다. 센서를 장착한 URDF link 이름을 지정하십시오 |
@@ -233,10 +229,9 @@ combined 타입 두 가지는 여섯 축을 한 프레임에 담으므로 클래
 센서는 이 값을 비휘발성 메모리에 보관하므로 전원을 껐다 켜도 유지되고, 값을 바꾸지 않은 채로 다시
 실행하면 센서에 아무것도 쓰지 않습니다.
 
-출고 상태의 센서는 CAN 2.0 ID로 `0x230`을 사용하며, 이 값은 AIDIN Hand Gen2의 ID와 겹칩니다
-([Sharing a channel with the AIDIN Hand Gen2](#sharing-a-channel-with-the-aidin-hand-gen2) 참고).
-따라서 기본 파일로 처음 실행하면 driver가 이 ID를 `0x430`으로 바꿉니다. `~/restore_defaults`를
-호출하면 `0x230`으로 돌아가고, 다음 실행에서 다시 바뀝니다.
+출고 상태의 센서는 CAN 2.0 ID로 `0x430`, CAN FD ID로 `0x330`을 사용하며, 두 값은
+`set_id_can20`과 `set_id_canfd`의 기본값과 같습니다. 따라서 기본 파일로 실행하면 driver는 새 센서에
+ID를 쓰지 않고, `~/restore_defaults`를 호출해도 센서는 같은 두 ID로 돌아갑니다.
 
 센서가 새 ID를 받아들이지 않으면 driver는 두 ID를 모두 적은 경고를 남기고, 기동을 실패로 처리하는
 대신 센서가 응답한 ID로 계속 읽습니다.
@@ -287,7 +282,7 @@ ros2 service call /right_wrist_ft/set_bias std_srvs/srv/Trigger
   ros__parameters:
     can_mode:  fd_brs
     data_type: float_combined
-    rate_hz:   1000
+    rate_hz:   250
 
 right_wrist_ft:
   ros__parameters:
@@ -336,7 +331,7 @@ right_wrist_ft:
 | Message | 원인 | 조치 |
 |---|---|---|
 | `there is no interface called can0` | 어댑터가 연결되지 않았거나 커널 드라이버가 없습니다 | `ip -br link show type can`으로 확인하고, [Installation](#installation)에 따라 드라이버를 확인합니다 |
-| `can0 is down` | 인터페이스는 있지만 준비되지 않았습니다 | `sudo scripts/can_up.sh can0` |
+| `can0 is down` | 인터페이스는 있지만 준비되지 않았습니다 | [Setting up the CAN interface](#setting-up-the-can-interface)의 명령을 실행합니다 |
 | `can0 is not set up for CAN FD (MTU 16)` | `can_mode`는 FD를 요구하는데 인터페이스가 클래식으로 준비되어 있습니다 | message에 표시된 `ip link` 명령을 실행하거나 `can_mode`를 `classic`으로 바꿉니다 |
 | `another instance already holds can0` | 같은 인터페이스에서 다른 driver가 작동 중입니다 | 먼저 실행한 쪽을 종료하거나, 이 센서에 별도 인터페이스를 지정합니다 |
 | `this data type puts six axes in one frame and needs CAN FD` | combined 계열 `data_type`을 `can_mode: classic`과 함께 설정했습니다 | `int6`를 사용하거나 `can_mode`를 `fd_brs`로 바꿉니다 |
