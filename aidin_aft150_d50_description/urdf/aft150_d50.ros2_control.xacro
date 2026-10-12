@@ -13,7 +13,7 @@
                        can_interface
                        can_mode:=fd_brs
                        data_type:=float_combined
-                       rate_hz:=1000
+                       rate_hz:=250
                        set_id_can20:=0x430
                        set_id_canfd:=0x330">
 
