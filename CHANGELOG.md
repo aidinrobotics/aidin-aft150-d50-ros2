@@ -41,10 +41,10 @@ parameters on both paths.
   boot path. When the sensor does not adopt the new ID, the driver warns and keeps reading on the
   ID the sensor reported instead of refusing to start.
 - **The sensor can share a CAN channel with an AIDIN Hand Gen2.** It uses the robot hand's bit
-  timing, and `set_id_can20` defaults to `0x430` rather than the factory `0x230`, because the
-  factory range `0x230`–`0x232` overlaps the tactile IDs of the left hand. The first launch
-  therefore moves a new sensor to `0x430` once. Keep `can_mode` at `fd_brs` on a shared channel,
-  because the robot hand runs CAN FD with the bitrate switch.
+  timing, and its CAN 2.0 IDs, `0x420` for commands and `0x430`–`0x432` for data, stay clear of
+  the robot hand's `0x111`–`0x138` and `0x211`–`0x238`. These are the sensor's factory IDs and the
+  defaults of the parameter file, so the driver writes no ID to a new sensor. Keep `can_mode` at
+  `fd_brs` on a shared channel, because the robot hand runs CAN FD with the bitrate switch.
 - **Three services cover the actions that carry no value: `~/set_bias`, `~/confirm_id` and
   `~/restore_defaults`.** All three are `std_srvs/srv/Trigger`, so the driver defines no service
   types of its own and `rosidl` stays out of the build. Anything that carries a value is a
