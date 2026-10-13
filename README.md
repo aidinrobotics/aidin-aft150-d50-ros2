@@ -30,7 +30,8 @@ sensor interface.
 &nbsp;&nbsp;[**7. Integration**](#7-integration)<br>
 &nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;[7.1 Adding the sensor to a ros2_control system](#71-adding-the-sensor-to-a-ros2_control-system)<br>
 &nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;[7.2 Sharing a CAN channel with the AIDIN Hand Gen2](#72-sharing-a-can-channel-with-the-aidin-hand-gen2)<br>
-&nbsp;&nbsp;[**8. Troubleshooting**](#8-troubleshooting)
+&nbsp;&nbsp;[**8. Troubleshooting**](#8-troubleshooting)<br>
+&nbsp;&nbsp;[**9. License**](#9-license)
 
 ## 1. System requirements
 
@@ -379,3 +380,12 @@ candump can0
 
 If only the driver's commands (`0x320` or `0x420`) appear and no sensor data (`0x330`–`0x332` or
 `0x430`–`0x431`) follows, the sensor is not powered, or not connected to this interface.
+
+## 9. License
+
+The AIDIN AFT150-D50 ROS 2 driver is licensed under the [Apache License 2.0](LICENSE).
+[NOTICE](NOTICE) holds the attribution notice that the license requires a distribution to carry.
+
+`aidin_aft150_d50_driver/prebuilt/<arch>/libaft150_d50_comms.a` is covered by the same Apache
+License 2.0. It ships as a binary because the source of the sensor communication is not published,
+and the build absorbs it into the driver's shared library, so it is not installed on its own.

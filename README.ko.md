@@ -29,7 +29,8 @@ AIDIN AFT150-D50 6축 힘·토크 센서를 SocketCAN으로 읽는 ROS 2 driver�
 &nbsp;&nbsp;[**7. Integration**](#7-integration)<br>
 &nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;[7.1 Adding the sensor to a ros2_control system](#71-adding-the-sensor-to-a-ros2_control-system)<br>
 &nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;[7.2 Sharing a CAN channel with the AIDIN Hand Gen2](#72-sharing-a-can-channel-with-the-aidin-hand-gen2)<br>
-&nbsp;&nbsp;[**8. Troubleshooting**](#8-troubleshooting)
+&nbsp;&nbsp;[**8. Troubleshooting**](#8-troubleshooting)<br>
+&nbsp;&nbsp;[**9. License**](#9-license)
 
 ## 1. System requirements
 
@@ -374,3 +375,12 @@ candump can0
 
 driver의 명령(`0x320` 또는 `0x420`)만 보이고 센서의 데이터(`0x330`~`0x332` 또는 `0x430`~`0x431`)가
 없으면, 센서 전원이 꺼져 있거나 센서가 이 interface에 연결되어 있지 않은 것입니다.
+
+## 9. License
+
+AIDIN AFT150-D50 ROS 2 driver는 [Apache License 2.0](LICENSE)을 따릅니다. 이 driver를 배포할 때는
+라이선스가 요구하는 고지인 [NOTICE](NOTICE)를 함께 포함하십시오.
+
+`aidin_aft150_d50_driver/prebuilt/<arch>/libaft150_d50_comms.a`도 같은 Apache License 2.0을 따릅니다.
+센서 통신 코드의 소스를 공개하지 않으므로 바이너리로만 제공하며, 빌드할 때 driver의 공유 라이브러리에
+포함되므로 따로 설치되지 않습니다.
