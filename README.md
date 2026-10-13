@@ -167,10 +167,12 @@ it. For example, `200` runs at 100 Hz. Below `100`, the driver does not start.
 ### 4.2 Standalone node
 
 ```bash
-ros2 launch aidin_aft150_d50_bringup aft150_d50.launch.py
+ros2 launch aidin_aft150_d50_bringup aft150_d50.launch.py \
+  params_file:=$(ros2 pkg prefix --share aidin_aft150_d50_bringup)/config/aft150_d50_standalone.yaml
 ```
 
-By default it reads `aft150_d50_standalone.yaml`.
+`params_file` takes the path of the parameter file. The path above is the default file, so leaving
+the argument out reads the same file.
 
 The launch file starts one node per sensor block in the parameter file, named after the block. The
 default file starts `/left_wrist_ft`, and `aft150_d50_standalone_dual.yaml` starts `/left_wrist_ft`
@@ -182,10 +184,12 @@ and the other sensors carry on.
 ### 4.3 ros2_control
 
 ```bash
-ros2 launch aidin_aft150_d50_bringup aft150_d50_ros2_control.launch.py
+ros2 launch aidin_aft150_d50_bringup aft150_d50_ros2_control.launch.py \
+  params_file:=$(ros2 pkg prefix --share aidin_aft150_d50_bringup)/config/aft150_d50_ros2_control.yaml
 ```
 
-By default it reads `aft150_d50_ros2_control.yaml`.
+`params_file` takes the path of the parameter file. The path above is the default file, so leaving
+the argument out reads the same file.
 
 The launch file starts `controller_manager` and `robot_state_publisher`, and runs one hardware
 component and one `force_torque_sensor_broadcaster` for each sensor. The parameter file holds one
@@ -221,8 +225,12 @@ block and one more sensor block.
 ### 4.4 RViz view
 
 ```bash
-ros2 launch aidin_aft150_d50_bringup aft150_d50_view.launch.py
+ros2 launch aidin_aft150_d50_bringup aft150_d50_view.launch.py \
+  params_file:=$(ros2 pkg prefix --share aidin_aft150_d50_bringup)/config/aft150_d50_standalone.yaml
 ```
+
+`params_file` takes the path of the parameter file. The path above is the default file, so leaving
+the argument out reads the same file.
 
 The launch file shows the sensors in the parameter file in RViz. `left_wrist_ft` sits to the left
 of the `world` origin, `right_wrist_ft` to the right, and a sensor under any other name on the

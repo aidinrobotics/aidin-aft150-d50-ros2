@@ -164,10 +164,12 @@ left_wrist_ft:                # 센서 블록
 ### 4.2 Standalone node
 
 ```bash
-ros2 launch aidin_aft150_d50_bringup aft150_d50.launch.py
+ros2 launch aidin_aft150_d50_bringup aft150_d50.launch.py \
+  params_file:=$(ros2 pkg prefix --share aidin_aft150_d50_bringup)/config/aft150_d50_standalone.yaml
 ```
 
-기본으로 `aft150_d50_standalone.yaml`을 읽습니다.
+`params_file`에는 parameter 파일의 경로를 넘깁니다. 위 명령의 경로가 기본 파일이므로, 인자를 생략해도
+같은 파일을 읽습니다.
 
 launch 파일은 parameter 파일의 센서 블록마다 같은 이름의 node를 하나씩 실행합니다. 기본 파일로는
 `/left_wrist_ft`가, `aft150_d50_standalone_dual.yaml`로는 `/left_wrist_ft`와 `/right_wrist_ft`가
@@ -179,10 +181,12 @@ launch 파일은 parameter 파일의 센서 블록마다 같은 이름의 node�
 ### 4.3 ros2_control
 
 ```bash
-ros2 launch aidin_aft150_d50_bringup aft150_d50_ros2_control.launch.py
+ros2 launch aidin_aft150_d50_bringup aft150_d50_ros2_control.launch.py \
+  params_file:=$(ros2 pkg prefix --share aidin_aft150_d50_bringup)/config/aft150_d50_ros2_control.yaml
 ```
 
-기본으로 `aft150_d50_ros2_control.yaml`을 읽습니다.
+`params_file`에는 parameter 파일의 경로를 넘깁니다. 위 명령의 경로가 기본 파일이므로, 인자를 생략해도
+같은 파일을 읽습니다.
 
 launch 파일은 `controller_manager`와 `robot_state_publisher`를 실행하고, 센서마다 hardware
 컴포넌트와 `force_torque_sensor_broadcaster`를 하나씩 실행합니다. parameter 파일에는 센서마다
@@ -217,8 +221,12 @@ broadcaster 블록과 센서 블록을 하나씩 더 적으십시오.
 ### 4.4 RViz view
 
 ```bash
-ros2 launch aidin_aft150_d50_bringup aft150_d50_view.launch.py
+ros2 launch aidin_aft150_d50_bringup aft150_d50_view.launch.py \
+  params_file:=$(ros2 pkg prefix --share aidin_aft150_d50_bringup)/config/aft150_d50_standalone.yaml
 ```
+
+`params_file`에는 parameter 파일의 경로를 넘깁니다. 위 명령의 경로가 기본 파일이므로, 인자를 생략해도
+같은 파일을 읽습니다.
 
 launch 파일은 parameter 파일의 센서를 RViz에 표시합니다. `left_wrist_ft`는 `world` 원점의 왼쪽에,
 `right_wrist_ft`는 오른쪽에 놓이며, 다른 이름의 센서는 원점에 놓입니다.
