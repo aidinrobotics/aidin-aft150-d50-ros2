@@ -45,12 +45,10 @@
   <!-- ===================== Sensors without a block above ==================== -->
 
   <!-- Every other sensor in the parameter file goes on the world origin. A sensor is a top-level
-       block other than /**, controller_manager and the controllers declared under it. A name
+       block other than /**, controller_manager and the controllers, which carry a type. A name
        given its own block above goes into listed as well, or it is written twice. -->
 
   <xacro:property name="listed" value="${['left_wrist_ft', 'right_wrist_ft']}"/>
-  <xacro:property name="declared_controllers"
-                  value="${params.get('controller_manager', dict()).get('ros__parameters', dict())}"/>
 
   <xacro:macro name="aft150_d50_on_world" params="names">
     <xacro:if value="${len(names) > 0}">
@@ -67,6 +65,6 @@
 
   <xacro:aft150_d50_on_world
     names="${[key for key in params if key not in listed + ['/**', 'controller_manager']
-              and key not in declared_controllers]}"/>
+              and 'type' not in params[key].get('ros__parameters', dict())]}"/>
 
 </robot>

@@ -1,20 +1,13 @@
 # aidin_aft150_d50_driver
 
-Communication layer for the AIDIN AFT150-D50 and the standalone ROS 2 node.
+Sensor communication library for the AIDIN AFT150-D50 and the standalone node `aft150_d50_node`.
 
-- `aft150_d50_node` opens the CAN interface, publishes `geometry_msgs/msg/WrenchStamped` on
-  `~/wrench`, which resolves to `/<sensor name>/wrench`, and provides the two services. Start
-  it through [`aidin_aft150_d50_bringup`](../aidin_aft150_d50_bringup/README.md).
-- `include/aidin_aft150_d50_driver/aft150_d50_comms.hpp` is the boundary to the communication
-  layer. `Comms::open_bus` returns a handle that owns the socket and the receive thread, and
-  releasing the handle closes both.
-- `include/aidin_aft150_d50_driver/aft150_d50_services.hpp` holds parameter validation and the
-  service implementations. The standalone node and the `ros2_control` component both link this, so
-  the two paths answer the same service names with the same behaviour.
-- `prebuilt/<arch>/libaft150_d50_comms.a` is the communication layer, absorbed into this package's
-  shared library rather than installed on its own. `BUILD-INFO` beside it records the version, the
-  commit and the toolchain that produced it. The build stops with a message naming the
-  architectures it ships when the current one is absent.
+- `aft150_d50_node` opens the CAN interface, reads the sensor, and publishes
+  `geometry_msgs/msg/WrenchStamped` on `/<sensor_name>/wrench`. It also provides the two services.
+- Start the node with the launch files of
+  [`aidin_aft150_d50_bringup`](../aidin_aft150_d50_bringup/README.md).
+- The sensor communication library ships for x86_64 and aarch64. On any other architecture the
+  build stops, and its message names the supported architectures.
 
 Parameters, services and topics are in the [repository README](../README.md). The Korean guide is
 in [README.ko.md](README.ko.md).

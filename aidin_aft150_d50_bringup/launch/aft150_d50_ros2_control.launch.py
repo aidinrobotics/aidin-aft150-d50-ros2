@@ -1,9 +1,9 @@
 """AIDIN AFT150-D50 through ros2_control.
 
 Starts ros2_control_node and robot_state_publisher from the xacro description, then spawns every
-controller declared under controller_manager. All of it comes from one parameter file: the
-sensors' hardware settings for the description, and controller_manager and the broadcasters for
-ros2_control_node.
+controller in the parameter file. All of it comes from that one file: the sensors' hardware
+settings for the description, controller_manager for ros2_control_node, and the broadcasters for
+the spawners.
 
   ros2 launch aidin_aft150_d50_bringup aft150_d50_ros2_control.launch.py
   ros2 launch aidin_aft150_d50_bringup aft150_d50_ros2_control.launch.py params_file:=~/my.yaml
@@ -24,11 +24,11 @@ from launch_ros.parameter_descriptions import ParameterValue
 
 
 def _controller_names(params_file):
-    """Controllers declared under controller_manager, each a block with a type."""
+    """Controllers in the parameter file, each a top-level block with a type."""
     with open(params_file) as f:
         loaded = yaml.safe_load(f) or {}
-    declared = loaded.get('controller_manager', {}).get('ros__parameters', {})
-    return [name for name, value in declared.items() if isinstance(value, dict)]
+    return [name for name, block in loaded.items()
+            if 'type' in ((block or {}).get('ros__parameters') or {})]
 
 
 def _setup(context, *_):
@@ -61,7 +61,7 @@ def _setup(context, *_):
         Node(
             package='controller_manager',
             executable='spawner',
-            arguments=[name],
+            arguments=[name, '--param-file', params_file],
             output='screen',
         )
         for name in _controller_names(params_file)
@@ -79,7 +79,7 @@ def generate_launch_description():
         DeclareLaunchArgument(
             'params_file',
             default_value=default_params,
-            description='Parameter file with controller_manager, the broadcasters and one '
+            description='Parameter file with controller_manager, one broadcaster and one '
                         'block per sensor.',
         ),
         OpaqueFunction(function=_setup),

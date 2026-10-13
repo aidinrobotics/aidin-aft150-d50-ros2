@@ -1,9 +1,9 @@
 # One sensor read through ros2_control: controller_manager, the sensor's broadcaster, and the
 # sensor's hardware settings. aft150_d50_ros2_control_dual.yaml shows two sensors.
 #
-# A top-level block that is neither controller_manager nor a controller declared under it is a
-# sensor. The robot description in aidin_aft150_d50_description lists left_wrist_ft and
-# right_wrist_ft, so a sensor under another name needs a block there as well.
+# A top-level block with a type is a controller, and any other block besides controller_manager is
+# a sensor. The robot description in aidin_aft150_d50_description places left_wrist_ft and
+# right_wrist_ft, and puts a sensor under any other name on the world origin.
 #
 # can_interface differs from machine to machine, so point params_file at a copy rather than
 # editing this file:
@@ -19,13 +19,11 @@ controller_manager:
   ros__parameters:
     update_rate: 1000
 
-    left_wrist_ft_broadcaster:
-      type: force_torque_sensor_broadcaster/ForceTorqueSensorBroadcaster
-
 # ------------------------------ Broadcasters ------------------------------
 
 left_wrist_ft_broadcaster:
   ros__parameters:
+    type:        force_torque_sensor_broadcaster/ForceTorqueSensorBroadcaster
     sensor_name: left_wrist_ft
     frame_id:    left_wrist_ft_link
 

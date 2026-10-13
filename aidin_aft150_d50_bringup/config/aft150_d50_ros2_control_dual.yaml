@@ -1,6 +1,5 @@
-# Two sensors read through ros2_control, one per wrist. Adding a sensor means three entries: its
-# broadcaster under controller_manager, the broadcaster's own block, and the sensor's block. Each
-# sensor needs its own CAN interface.
+# Two sensors read through ros2_control, one per wrist. Adding a sensor means two blocks: its
+# broadcaster and the sensor itself. Each sensor needs its own CAN interface.
 #
 # controller_manager runs every sensor in one process, so a sensor that fails to come up stops
 # the others as well.
@@ -14,20 +13,17 @@ controller_manager:
   ros__parameters:
     update_rate: 1000
 
-    left_wrist_ft_broadcaster:
-      type: force_torque_sensor_broadcaster/ForceTorqueSensorBroadcaster
-    right_wrist_ft_broadcaster:
-      type: force_torque_sensor_broadcaster/ForceTorqueSensorBroadcaster
-
 # ------------------------------ Broadcasters ------------------------------
 
 left_wrist_ft_broadcaster:
   ros__parameters:
+    type:        force_torque_sensor_broadcaster/ForceTorqueSensorBroadcaster
     sensor_name: left_wrist_ft
     frame_id:    left_wrist_ft_link
 
 right_wrist_ft_broadcaster:
   ros__parameters:
+    type:        force_torque_sensor_broadcaster/ForceTorqueSensorBroadcaster
     sensor_name: right_wrist_ft
     frame_id:    right_wrist_ft_link
 
