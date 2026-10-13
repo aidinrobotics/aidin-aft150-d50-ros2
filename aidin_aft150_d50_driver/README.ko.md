@@ -2,8 +2,8 @@
 
 AIDIN AFT150-D50의 통신 계층과 독립 ROS 2 node입니다.
 
-- `aft150_d50_node`가 CAN 인터페이스를 열고 `~/wrench`로 `geometry_msgs/msg/WrenchStamped`를
-  발행하며 service 세 개를 제공합니다. 이 topic 이름은 `/<센서 이름>/wrench`로 해석됩니다. 실행은
+- `aft150_d50_node`가 CAN interface를 열고 `~/wrench`로 `geometry_msgs/msg/WrenchStamped`를
+  발행하며 service 두 개를 제공합니다. 이 topic 이름은 `/<센서 이름>/wrench`로 해석됩니다. 실행은
   [`aidin_aft150_d50_bringup`](../aidin_aft150_d50_bringup/README.ko.md)의 launch 파일로 합니다.
 - `include/aidin_aft150_d50_driver/aft150_d50_comms.hpp`가 통신 계층의 경계입니다.
   `Comms::open_bus`가 socket과 수신 스레드를 소유하는 handle을 돌려주고, handle을 해제하면 둘 다

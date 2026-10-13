@@ -3,7 +3,7 @@
 Communication layer for the AIDIN AFT150-D50 and the standalone ROS 2 node.
 
 - `aft150_d50_node` opens the CAN interface, publishes `geometry_msgs/msg/WrenchStamped` on
-  `~/wrench`, which resolves to `/<sensor name>/wrench`, and provides the three services. Start
+  `~/wrench`, which resolves to `/<sensor name>/wrench`, and provides the two services. Start
   it through [`aidin_aft150_d50_bringup`](../aidin_aft150_d50_bringup/README.md).
 - `include/aidin_aft150_d50_driver/aft150_d50_comms.hpp` is the boundary to the communication
   layer. `Comms::open_bus` returns a handle that owns the socket and the receive thread, and

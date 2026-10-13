@@ -21,13 +21,8 @@ struct Settings
   std::string can_mode = "fd_brs";
   std::string data_type = "float_combined";
   int rate_hz = 250;
-  int set_id_can20 = 0x430;
-  int set_id_canfd = 0x330;
   std::string frame_id;
 };
-
-inline constexpr int SET_ID_MIN = 0x000;
-inline constexpr int SET_ID_MAX = 0x7FF;
 
 const std::vector<std::string> & can_mode_names();
 const std::vector<std::string> & data_type_names();
@@ -36,7 +31,7 @@ const std::vector<int> & rate_hz_values();
 bool is_valid_can_mode(const std::string & value);
 bool is_valid_data_type(const std::string & value);
 bool is_valid_rate_hz(int value);
-bool is_valid_set_id(int value);
+int supported_rate_hz(int requested);
 bool data_type_needs_fd(const std::string & value);
 bool can_mode_is_fd(const std::string & value);
 
@@ -67,9 +62,6 @@ private:
   void handle_set_bias(
     const std::shared_ptr<std_srvs::srv::Trigger::Request> request,
     std::shared_ptr<std_srvs::srv::Trigger::Response> response);
-  void handle_confirm_id(
-    const std::shared_ptr<std_srvs::srv::Trigger::Request> request,
-    std::shared_ptr<std_srvs::srv::Trigger::Response> response);
   void handle_restore_defaults(
     const std::shared_ptr<std_srvs::srv::Trigger::Request> request,
     std::shared_ptr<std_srvs::srv::Trigger::Response> response);
@@ -81,7 +73,6 @@ private:
   std::unique_ptr<Comms> comms_;
 
   rclcpp::Service<std_srvs::srv::Trigger>::SharedPtr set_bias_;
-  rclcpp::Service<std_srvs::srv::Trigger>::SharedPtr confirm_id_;
   rclcpp::Service<std_srvs::srv::Trigger>::SharedPtr restore_defaults_;
 };
 

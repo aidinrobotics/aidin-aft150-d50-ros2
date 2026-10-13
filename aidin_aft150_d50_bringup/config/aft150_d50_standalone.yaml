@@ -1,0 +1,13 @@
+# One sensor read by the standalone node. The top-level key is the node name; call it whatever
+# fits the robot. aft150_d50_standalone_dual.yaml shows two sensors.
+#
+# can_interface differs from machine to machine, so point params_file at a copy rather than
+# editing this file:
+#   ros2 launch aidin_aft150_d50_bringup aft150_d50.launch.py params_file:=~/my_aft150.yaml
+
+left_wrist_ft:
+  ros__parameters:
+    can_interface: can0
+    can_mode:      fd_brs
+    data_type:     float_combined
+    rate_hz:       250

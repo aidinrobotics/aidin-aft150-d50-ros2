@@ -15,6 +15,7 @@
   <exec_depend>controller_manager</exec_depend>
   <exec_depend>force_torque_sensor_broadcaster</exec_depend>
   <exec_depend>robot_state_publisher</exec_depend>
+  <exec_depend>rviz2</exec_depend>
   <exec_depend>aidin_aft150_d50_driver</exec_depend>
   <exec_depend>aidin_aft150_d50_hardware</exec_depend>
   <exec_depend>aidin_aft150_d50_description</exec_depend>

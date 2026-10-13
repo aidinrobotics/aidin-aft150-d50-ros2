@@ -1,0 +1,52 @@
+<?xml version="1.0"?>
+<!-- One AFT150-D50, its body and the frames inside it. Where it is mounted is up to the caller,
+     which writes a fixed joint, <name>_base_joint, from its own link to <name>_base_link. Every
+     joint here is named after its child link in the same way.
+
+     <name>_base_link   the body and its mesh. The origin is the centre of the end face the sensor
+                        mounts with, and +Z points through the body to the other end face.
+     <name>_link        the measurement frame, which the wrench is stamped with.
+     <name>_tool_link   the other end face, where a tool or a robot hand goes.
+
+     meshes/aft150_d50.stl is in millimetres, has the same origin as <name>_base_link and carries
+     the X and Y axes engraved on the sensor. -->
+<robot xmlns:xacro="http://www.ros.org/wiki/xacro">
+
+  <xacro:macro name="aft150_d50_unit" params="name">
+
+    <link name="${name}_base_link">
+      <visual>
+        <geometry>
+          <mesh filename="package://aidin_aft150_d50_description/meshes/aft150_d50.stl"
+                scale="0.001 0.001 0.001"/>
+        </geometry>
+        <material name="${name}_grey">
+          <color rgba="0.75 0.75 0.78 1"/>
+        </material>
+      </visual>
+      <collision>
+        <origin xyz="0 0 0.00885" rpy="0 0 0"/>
+        <geometry>
+          <cylinder radius="0.025" length="0.0177"/>
+        </geometry>
+      </collision>
+    </link>
+
+    <!-- The tool face centre stands in for the measurement origin until the datasheet gives it -->
+    <joint name="${name}_joint" type="fixed">
+      <parent link="${name}_base_link"/>
+      <child link="${name}_link"/>
+      <origin xyz="0 0 0.0177" rpy="0 0 0"/>
+    </joint>
+    <link name="${name}_link"/>
+
+    <joint name="${name}_tool_joint" type="fixed">
+      <parent link="${name}_base_link"/>
+      <child link="${name}_tool_link"/>
+      <origin xyz="0 0 0.0177" rpy="0 0 0"/>
+    </joint>
+    <link name="${name}_tool_link"/>
+
+  </xacro:macro>
+
+</robot>

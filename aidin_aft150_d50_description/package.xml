@@ -3,7 +3,7 @@
 <package format="3">
   <name>aidin_aft150_d50_description</name>
   <version>0.1.0</version>
-  <description>AIDIN AFT150-D50 URDF and ros2_control description.</description>
+  <description>AIDIN AFT150-D50 URDF, mesh and ros2_control description.</description>
   <maintainer email="jinh.lee@aidinrobotics.co.kr">jinh.lee</maintainer>
   <license>TODO</license>
 

@@ -1,0 +1,72 @@
+<?xml version="1.0"?>
+<!-- The sensors of a parameter file on world, each with its ros2_control block. The launch files
+     in aidin_aft150_d50_bringup run this with params_file, and a sensor appears only when that
+     file has a block for it.
+
+     left_wrist_ft and right_wrist_ft have blocks of their own that place them. Any other sensor
+     lands on the world origin, and placing it means giving it a block like theirs.
+
+     A real robot writes the same three entries per sensor in its own description, with its own
+     link as the parent. -->
+<robot xmlns:xacro="http://www.ros.org/wiki/xacro" name="aft150_d50">
+
+  <xacro:arg name="params_file" default=""/>
+  <xacro:property name="params" value="${xacro.load_yaml('$(arg params_file)')}"/>
+
+  <xacro:include filename="$(find aidin_aft150_d50_description)/xacro/aft150_d50_unit.urdf.xacro"/>
+  <xacro:include filename="$(find aidin_aft150_d50_description)/ros2_control/aft150_d50.ros2_control.xacro"/>
+
+  <link name="world"/>
+
+  <!-- ============================ left_wrist_ft ============================ -->
+
+  <xacro:if value="${'left_wrist_ft' in params}">
+    <xacro:aft150_d50_unit name="left_wrist_ft"/>
+    <joint name="left_wrist_ft_base_joint" type="fixed">
+      <parent link="world"/>
+      <child link="left_wrist_ft_base_link"/>
+      <origin xyz="0 0.1 0" rpy="0 0 0"/>
+    </joint>
+    <xacro:aft150_d50_ros2_control name="left_wrist_ft" params_file="$(arg params_file)"/>
+  </xacro:if>
+
+  <!-- ============================ right_wrist_ft =========================== -->
+
+  <xacro:if value="${'right_wrist_ft' in params}">
+    <xacro:aft150_d50_unit name="right_wrist_ft"/>
+    <joint name="right_wrist_ft_base_joint" type="fixed">
+      <parent link="world"/>
+      <child link="right_wrist_ft_base_link"/>
+      <origin xyz="0 -0.1 0" rpy="0 0 0"/>
+    </joint>
+    <xacro:aft150_d50_ros2_control name="right_wrist_ft" params_file="$(arg params_file)"/>
+  </xacro:if>
+
+  <!-- ===================== Sensors without a block above ==================== -->
+
+  <!-- Every other sensor in the parameter file goes on the world origin. A sensor is a top-level
+       block other than /**, controller_manager and the controllers declared under it. A name
+       given its own block above goes into listed as well, or it is written twice. -->
+
+  <xacro:property name="listed" value="${['left_wrist_ft', 'right_wrist_ft']}"/>
+  <xacro:property name="declared_controllers"
+                  value="${params.get('controller_manager', dict()).get('ros__parameters', dict())}"/>
+
+  <xacro:macro name="aft150_d50_on_world" params="names">
+    <xacro:if value="${len(names) > 0}">
+      <xacro:aft150_d50_unit name="${names[0]}"/>
+      <joint name="${names[0]}_base_joint" type="fixed">
+        <parent link="world"/>
+        <child link="${names[0]}_base_link"/>
+        <origin xyz="0 0 0" rpy="0 0 0"/>
+      </joint>
+      <xacro:aft150_d50_ros2_control name="${names[0]}" params_file="$(arg params_file)"/>
+      <xacro:aft150_d50_on_world names="${names[1:]}"/>
+    </xacro:if>
+  </xacro:macro>
+
+  <xacro:aft150_d50_on_world
+    names="${[key for key in params if key not in listed + ['/**', 'controller_manager']
+              and key not in declared_controllers]}"/>
+
+</robot>

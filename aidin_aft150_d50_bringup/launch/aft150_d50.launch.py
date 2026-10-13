@@ -39,7 +39,7 @@ def launch_setup(context, *args, **kwargs):
 
 def generate_launch_description():
     default_params = get_package_share_directory('aidin_aft150_d50_bringup') \
-        + '/config/aft150_d50_params.yaml'
+        + '/config/aft150_d50_standalone.yaml'
 
     return LaunchDescription([
         DeclareLaunchArgument(
