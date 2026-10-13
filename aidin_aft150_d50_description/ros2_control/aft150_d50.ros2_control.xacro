@@ -1,0 +1,46 @@
+<?xml version="1.0"?>
+<!-- ros2_control block for one AFT150-D50.
+
+     The settings come from the sensor's block in the parameter file, merged over its /** block.
+     A key the file leaves out gets no <param>, so the hardware uses its own default for it.
+
+     The state interface names are fixed: force_torque_sensor_broadcaster builds them from the
+     sensor name and refuses to configure if they differ.
+
+     The ros2_control name becomes the node name the hardware component creates, which is what
+     makes the services here answer to the same names as the standalone node. -->
+<robot xmlns:xacro="http://www.ros.org/wiki/xacro">
+
+  <xacro:macro name="aft150_d50_ros2_control_params" params="settings keys">
+    <xacro:if value="${len(keys) > 0}">
+      <param name="${keys[0]}">${settings[keys[0]]}</param>
+      <xacro:aft150_d50_ros2_control_params settings="${settings}" keys="${keys[1:]}"/>
+    </xacro:if>
+  </xacro:macro>
+
+  <xacro:macro name="aft150_d50_ros2_control" params="name params_file">
+    <xacro:property name="blocks" value="${xacro.load_yaml(params_file)}"/>
+    <xacro:property name="common"
+                    value="${blocks.get('/**', dict()).get('ros__parameters', dict())}"/>
+    <xacro:property name="settings" value="${dict(common, **blocks[name]['ros__parameters'])}"/>
+
+    <ros2_control name="${name}" type="sensor">
+      <hardware>
+        <plugin>aidin_aft150_d50_hardware/Aft150D50SensorInterface</plugin>
+        <xacro:aft150_d50_ros2_control_params settings="${settings}"
+                                              keys="${python.sorted(settings.keys())}"/>
+      </hardware>
+
+      <sensor name="${name}">
+        <state_interface name="force.x"/>
+        <state_interface name="force.y"/>
+        <state_interface name="force.z"/>
+        <state_interface name="torque.x"/>
+        <state_interface name="torque.y"/>
+        <state_interface name="torque.z"/>
+      </sensor>
+    </ros2_control>
+
+  </xacro:macro>
+
+</robot>

@@ -1,0 +1,37 @@
+# One sensor read through ros2_control: controller_manager, the sensor's broadcaster, and the
+# sensor's hardware settings. aft150_d50_ros2_control_dual.yaml shows two sensors.
+#
+# A top-level block with a type is a controller, and any other block besides controller_manager is
+# a sensor. The robot description in aidin_aft150_d50_description places left_wrist_ft and
+# right_wrist_ft, and puts a sensor under any other name on the world origin.
+#
+# can_interface differs from machine to machine, so point params_file at a copy rather than
+# editing this file:
+#   ros2 launch aidin_aft150_d50_bringup aft150_d50_ros2_control.launch.py \
+#     params_file:=~/my_aft150_ros2_control.yaml
+
+# --------------------------- Controller manager ---------------------------
+
+# update_rate is how often controller_manager calls read() on the hardware. It is not the sensor
+# rate, which rate_hz below sets, but reading slower than the sensor sends means skipping samples,
+# so keep this at or above the highest rate_hz in use.
+controller_manager:
+  ros__parameters:
+    update_rate: 1000
+
+# ------------------------------ Broadcasters ------------------------------
+
+left_wrist_ft_broadcaster:
+  ros__parameters:
+    type:        force_torque_sensor_broadcaster/ForceTorqueSensorBroadcaster
+    sensor_name: left_wrist_ft
+    frame_id:    left_wrist_ft_link
+
+# --------------------------------- Sensors --------------------------------
+
+left_wrist_ft:
+  ros__parameters:
+    can_interface: can0
+    can_mode:      fd_brs
+    data_type:     float_combined
+    rate_hz:       250

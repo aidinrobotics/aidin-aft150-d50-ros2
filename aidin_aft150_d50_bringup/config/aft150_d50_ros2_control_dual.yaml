@@ -1,0 +1,44 @@
+# Two sensors read through ros2_control, one per wrist. Adding a sensor means two blocks: its
+# broadcaster and the sensor itself. Each sensor needs its own CAN interface.
+#
+# controller_manager runs every sensor in one process, so a sensor that fails to come up stops
+# the others as well.
+#
+#   ros2 launch aidin_aft150_d50_bringup aft150_d50_ros2_control.launch.py \
+#     params_file:=$(ros2 pkg prefix aidin_aft150_d50_bringup)/share/aidin_aft150_d50_bringup/config/aft150_d50_ros2_control_dual.yaml
+
+# --------------------------- Controller manager ---------------------------
+
+controller_manager:
+  ros__parameters:
+    update_rate: 1000
+
+# ------------------------------ Broadcasters ------------------------------
+
+left_wrist_ft_broadcaster:
+  ros__parameters:
+    type:        force_torque_sensor_broadcaster/ForceTorqueSensorBroadcaster
+    sensor_name: left_wrist_ft
+    frame_id:    left_wrist_ft_link
+
+right_wrist_ft_broadcaster:
+  ros__parameters:
+    type:        force_torque_sensor_broadcaster/ForceTorqueSensorBroadcaster
+    sensor_name: right_wrist_ft
+    frame_id:    right_wrist_ft_link
+
+# --------------------------------- Sensors --------------------------------
+
+left_wrist_ft:
+  ros__parameters:
+    can_interface: can0
+    can_mode:      fd_brs
+    data_type:     float_combined
+    rate_hz:       250
+
+right_wrist_ft:
+  ros__parameters:
+    can_interface: can1
+    can_mode:      fd_brs
+    data_type:     float_combined
+    rate_hz:       250

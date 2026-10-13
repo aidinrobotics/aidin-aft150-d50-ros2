@@ -41,6 +41,9 @@ std::string join(const std::vector<int> & values)
 // The answer to CONFIRM ID comes back on the receive thread, so a caller waits before reading it.
 constexpr int CONFIRM_ID_WAIT_MS = 150;
 
+constexpr int DEFAULT_ID_CAN20 = 0x430;
+constexpr int DEFAULT_ID_CANFD = 0x330;
+
 std::string as_hex(int value)
 {
   char buf[16];
@@ -114,9 +117,16 @@ bool is_valid_rate_hz(int value)
   return std::find(values.begin(), values.end(), value) != values.end();
 }
 
-bool is_valid_set_id(int value)
+// The highest rate the sensor offers that does not exceed the request, or 0 below the lowest.
+int supported_rate_hz(int requested)
 {
-  return value >= SET_ID_MIN && value <= SET_ID_MAX;
+  int supported = 0;
+  for (const int value : rate_hz_values()) {
+    if (value <= requested) {
+      supported = value;
+    }
+  }
+  return supported;
 }
 
 bool data_type_needs_fd(const std::string & value)
@@ -146,18 +156,9 @@ bool validate(const Settings & s, std::string & reason)
     reason = "data_type is '" + s.data_type + "'. Allowed: " + join(data_type_names());
     return false;
   }
-  if (!is_valid_rate_hz(s.rate_hz)) {
-    reason = "rate_hz is " + std::to_string(s.rate_hz) + ". Allowed: " + join(rate_hz_values());
-    return false;
-  }
-  if (!is_valid_set_id(s.set_id_can20)) {
-    reason = "set_id_can20 is " + std::to_string(s.set_id_can20) +
-      ", which is outside 0x000 to 0x7FF";
-    return false;
-  }
-  if (!is_valid_set_id(s.set_id_canfd)) {
-    reason = "set_id_canfd is " + std::to_string(s.set_id_canfd) +
-      ", which is outside 0x000 to 0x7FF";
+  if (supported_rate_hz(s.rate_hz) == 0) {
+    reason = "rate_hz is " + std::to_string(s.rate_hz) + ", below the lowest rate the sensor "
+      "offers. Supported: " + join(rate_hz_values());
     return false;
   }
   if (data_type_needs_fd(s.data_type) && !can_mode_is_fd(s.can_mode)) {
@@ -180,7 +181,7 @@ void declare_settings(rclcpp::Node * node, Settings & s)
 {
   s.can_interface = node->declare_parameter(
     "can_interface", s.can_interface,
-    read_only("Name of the SocketCAN interface to open. It must already be up"));
+    read_only("Name of the CAN interface the sensor is on. It must already be up"));
   s.can_mode = node->declare_parameter(
     "can_mode", s.can_mode,
     read_only("Frame format: " + join(can_mode_names())));
@@ -190,15 +191,9 @@ void declare_settings(rclcpp::Node * node, Settings & s)
   s.rate_hz = static_cast<int>(
     node->declare_parameter(
       "rate_hz", static_cast<int64_t>(s.rate_hz),
-      read_only("Update rate in Hz: " + join(rate_hz_values()))));
-  s.set_id_can20 = static_cast<int>(
-    node->declare_parameter(
-      "set_id_can20", static_cast<int64_t>(s.set_id_can20),
-      read_only("CAN 2.0 transmit ID to give the sensor, 0x000 to 0x7FF")));
-  s.set_id_canfd = static_cast<int>(
-    node->declare_parameter(
-      "set_id_canfd", static_cast<int64_t>(s.set_id_canfd),
-      read_only("CAN FD transmit ID to give the sensor, 0x000 to 0x7FF")));
+      read_only(
+        "Update rate in Hz. The sensor runs at the highest of " + join(rate_hz_values()) +
+        " that does not exceed it")));
   s.frame_id = node->declare_parameter(
     "frame_id",
     s.frame_id.empty() ? std::string(node->get_name()) + "_link" : s.frame_id,
@@ -222,6 +217,14 @@ bool Services::start(std::string & reason)
 {
   if (!validate(settings_, reason)) {
     return false;
+  }
+
+  const int rate_hz = supported_rate_hz(settings_.rate_hz);
+  if (rate_hz != settings_.rate_hz) {
+    RCLCPP_WARN(
+      node_->get_logger(), "rate_hz %d is not a rate the sensor offers, so it runs at %d Hz",
+      settings_.rate_hz, rate_hz);
+    settings_.rate_hz = rate_hz;
   }
 
   char err[256] = {0};
@@ -269,11 +272,6 @@ bool Services::start(std::string & reason)
     [this](
       const std::shared_ptr<std_srvs::srv::Trigger::Request> req,
       std::shared_ptr<std_srvs::srv::Trigger::Response> res) {handle_set_bias(req, res);});
-  confirm_id_ = node_->create_service<std_srvs::srv::Trigger>(
-    "~/confirm_id",
-    [this](
-      const std::shared_ptr<std_srvs::srv::Trigger::Request> req,
-      std::shared_ptr<std_srvs::srv::Trigger::Response> res) {handle_confirm_id(req, res);});
   restore_defaults_ = node_->create_service<std_srvs::srv::Trigger>(
     "~/restore_defaults",
     [this](
@@ -283,9 +281,9 @@ bool Services::start(std::string & reason)
   return true;
 }
 
-// The transmit ID lives in the sensor's NVM, so the driver finds out what it is before deciding
-// whether the parameters ask for a different one. Writing it unconditionally at every startup
-// would put a flash write in the boot path of every robot.
+// The transmit ID lives in the sensor's NVM, so the driver finds out what it is and moves it back
+// to the default only when it differs. Writing it unconditionally at every startup would put a
+// flash write in the boot path of every robot.
 bool Services::apply_transmit_ids(std::string & reason)
 {
   if (!comms_->cmd_confirm_id()) {
@@ -301,26 +299,26 @@ bool Services::apply_transmit_ids(std::string & reason)
     node_->get_logger(), "sensor transmit ID 2.0=%s FD=%s",
     as_hex(id20).c_str(), as_hex(idfd).c_str());
 
-  const bool change_can20 = (id20 != settings_.set_id_can20);
-  const bool change_canfd = (idfd != settings_.set_id_canfd);
+  const bool change_can20 = (id20 != DEFAULT_ID_CAN20);
+  const bool change_canfd = (idfd != DEFAULT_ID_CANFD);
   if (!change_can20 && !change_canfd) {
     return true;
   }
 
   if (change_can20) {
     RCLCPP_INFO(
-      node_->get_logger(), "changing the CAN 2.0 transmit ID from %s to %s",
-      as_hex(id20).c_str(), as_hex(settings_.set_id_can20).c_str());
-    if (!comms_->send_set_id(true, static_cast<std::uint16_t>(settings_.set_id_can20))) {
+      node_->get_logger(), "changing the CAN 2.0 transmit ID from %s to the default %s",
+      as_hex(id20).c_str(), as_hex(DEFAULT_ID_CAN20).c_str());
+    if (!comms_->send_set_id(true, static_cast<std::uint16_t>(DEFAULT_ID_CAN20))) {
       reason = comms_->last_error();
       return false;
     }
   }
   if (change_canfd) {
     RCLCPP_INFO(
-      node_->get_logger(), "changing the CAN FD transmit ID from %s to %s",
-      as_hex(idfd).c_str(), as_hex(settings_.set_id_canfd).c_str());
-    if (!comms_->send_set_id(false, static_cast<std::uint16_t>(settings_.set_id_canfd))) {
+      node_->get_logger(), "changing the CAN FD transmit ID from %s to the default %s",
+      as_hex(idfd).c_str(), as_hex(DEFAULT_ID_CANFD).c_str());
+    if (!comms_->send_set_id(false, static_cast<std::uint16_t>(DEFAULT_ID_CANFD))) {
       reason = comms_->last_error();
       return false;
     }
@@ -334,13 +332,13 @@ bool Services::apply_transmit_ids(std::string & reason)
   rclcpp::sleep_for(std::chrono::milliseconds(CONFIRM_ID_WAIT_MS));
   comms_->current_tx_id(id20, idfd);
 
-  if (id20 != settings_.set_id_can20 || idfd != settings_.set_id_canfd) {
+  if (id20 != DEFAULT_ID_CAN20 || idfd != DEFAULT_ID_CANFD) {
     RCLCPP_WARN(
       node_->get_logger(),
-      "the sensor reports 2.0=%s FD=%s but the parameters ask for 2.0=%s FD=%s. "
+      "the sensor reports 2.0=%s FD=%s instead of the defaults 2.0=%s FD=%s. "
       "Reading continues on the IDs the sensor reported",
       as_hex(id20).c_str(), as_hex(idfd).c_str(),
-      as_hex(settings_.set_id_can20).c_str(), as_hex(settings_.set_id_canfd).c_str());
+      as_hex(DEFAULT_ID_CAN20).c_str(), as_hex(DEFAULT_ID_CANFD).c_str());
   } else {
     RCLCPP_INFO(
       node_->get_logger(), "sensor transmit ID now 2.0=%s FD=%s",
@@ -352,7 +350,6 @@ bool Services::apply_transmit_ids(std::string & reason)
 void Services::stop()
 {
   set_bias_.reset();
-  confirm_id_.reset();
   restore_defaults_.reset();
   comms_.reset();
 }
@@ -394,32 +391,6 @@ void Services::handle_set_bias(
   RCLCPP_INFO(node_->get_logger(), "BIAS sent: the present load is now zero");
   response->success = true;
   response->message = "the present load is now zero";
-}
-
-void Services::handle_confirm_id(
-  const std::shared_ptr<std_srvs::srv::Trigger::Request>,
-  std::shared_ptr<std_srvs::srv::Trigger::Response> response)
-{
-  if (comms_ == nullptr) {
-    response->success = false;
-    response->message = "the bus is not open";
-    return;
-  }
-  if (!comms_->cmd_confirm_id()) {
-    RCLCPP_ERROR(node_->get_logger(), "CONFIRM ID failed: %s", comms_->last_error());
-    response->success = false;
-    response->message = comms_->last_error();
-    return;
-  }
-
-  rclcpp::sleep_for(std::chrono::milliseconds(CONFIRM_ID_WAIT_MS));
-  std::uint16_t id20 = 0;
-  std::uint16_t idfd = 0;
-  comms_->current_tx_id(id20, idfd);
-  const std::string text = "2.0=" + as_hex(id20) + " FD=" + as_hex(idfd);
-  RCLCPP_INFO(node_->get_logger(), "transmit ID %s", text.c_str());
-  response->success = true;
-  response->message = text;
 }
 
 void Services::handle_restore_defaults(

@@ -54,8 +54,6 @@ hardware_interface::CallbackReturn Aft150D50SensorInterface::on_init(
   settings_.can_mode = param_or(info_, "can_mode", defaults.can_mode);
   settings_.data_type = param_or(info_, "data_type", defaults.data_type);
   settings_.rate_hz = int_param_or(info_, "rate_hz", defaults.rate_hz);
-  settings_.set_id_can20 = int_param_or(info_, "set_id_can20", defaults.set_id_can20);
-  settings_.set_id_canfd = int_param_or(info_, "set_id_canfd", defaults.set_id_canfd);
   settings_.frame_id = param_or(info_, "frame_id", info_.name + "_link");
 
   std::string reason;

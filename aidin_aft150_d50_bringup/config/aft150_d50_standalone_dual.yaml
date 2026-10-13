@@ -1,0 +1,20 @@
+# Two sensors read by standalone nodes, one per wrist. Each top-level block is one sensor and the
+# key is its node name, so adding a sensor means adding a block. Each sensor needs its own CAN
+# interface.
+#
+#   ros2 launch aidin_aft150_d50_bringup aft150_d50.launch.py \
+#     params_file:=$(ros2 pkg prefix aidin_aft150_d50_bringup)/share/aidin_aft150_d50_bringup/config/aft150_d50_standalone_dual.yaml
+
+left_wrist_ft:
+  ros__parameters:
+    can_interface: can0
+    can_mode:      fd_brs
+    data_type:     float_combined
+    rate_hz:       250
+
+right_wrist_ft:
+  ros__parameters:
+    can_interface: can1
+    can_mode:      fd_brs
+    data_type:     float_combined
+    rate_hz:       250

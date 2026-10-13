@@ -6,18 +6,33 @@
 
 A ROS 2 driver for the AIDIN AFT150-D50 six-axis force/torque sensor over SocketCAN. It supports
 every update rate the sensor offers, and it publishes force in newtons and torque in
-newton-metres. Run it as a standalone node, or as a `ros2_control` sensor interface that joins an
-existing robot's resource manager.
+newton-metres. Run it as a standalone node, or add it to an existing `ros2_control` system as a
+sensor interface.
 
-[![version](https://img.shields.io/badge/version-0.1.0-blue)](CHANGELOG.md) [![ROS 2](https://img.shields.io/badge/ROS%202-Humble-brightgreen)](#system-requirements)
+![version](https://img.shields.io/badge/version-0.1.0-blue) [![ROS 2](https://img.shields.io/badge/ROS%202-Humble-brightgreen)](#1-system-requirements)
 
-[Install](#installation) | [Changelog](CHANGELOG.md) | [Official Site](https://www.aidinrobotics.co.kr/) | English | [한국어](README.ko.md)
+[Install](#2-installation) | [Official Site](https://www.aidinrobotics.co.kr/) | English | [한국어](README.ko.md)
 
 </div>
 
-## System requirements
+## Contents
 
-We verify that the driver builds and runs on the configuration below.
+&nbsp;&nbsp;[**1. System requirements**](#1-system-requirements)<br>
+&nbsp;&nbsp;[**2. Installation**](#2-installation)<br>
+&nbsp;&nbsp;[**3. Setting up the CAN interface**](#3-setting-up-the-can-interface)<br>
+&nbsp;&nbsp;[**4. Bringup**](#4-bringup)<br>
+&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;[4.1 Parameters](#41-parameters)<br>
+&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;[4.2 Standalone node](#42-standalone-node)<br>
+&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;[4.3 ros2_control](#43-ros2_control)<br>
+&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;[4.4 RViz view](#44-rviz-view)<br>
+&nbsp;&nbsp;[**5. Topics**](#5-topics)<br>
+&nbsp;&nbsp;[**6. Services**](#6-services)<br>
+&nbsp;&nbsp;[**7. Integration**](#7-integration)<br>
+&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;[7.1 Adding the sensor to a ros2_control system](#71-adding-the-sensor-to-a-ros2_control-system)<br>
+&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;[7.2 Sharing a CAN channel with the AIDIN Hand Gen2](#72-sharing-a-can-channel-with-the-aidin-hand-gen2)<br>
+&nbsp;&nbsp;[**8. Troubleshooting**](#8-troubleshooting)
+
+## 1. System requirements
 
 | Component | Requirement |
 |---|---|
@@ -25,16 +40,14 @@ We verify that the driver builds and runs on the configuration below.
 | ROS 2 | Humble |
 | CAN interface | USB CAN-FD adapter (SocketCAN), 1 Mbit/s nominal, 5 Mbit/s data phase |
 
-A CANable on candleLight firmware works as well.
-
-## Installation
+## 2. Installation
 
 ```bash
 sudo apt install can-utils
 colcon build --packages-up-to aidin_aft150_d50_bringup
 ```
 
-`can-utils` provides `candump`, which [Troubleshooting](#troubleshooting) uses.
+`can-utils` provides `candump`, which [8. Troubleshooting](#8-troubleshooting) uses.
 
 The adapter's kernel driver has to be present. Check the one for your adapter.
 
@@ -43,28 +56,25 @@ modinfo peak_usb | head -2       # PEAK PCAN-USB FD
 modinfo gs_usb   | head -2       # CANable on candleLight firmware
 ```
 
-A `filename` line means the driver is present. `Module ... not found` means the kernel lacks it:
-on a stock Ubuntu kernel run `sudo apt install linux-modules-extra-$(uname -r)`, and on a kernel
-you built yourself or a vendor kernel such as a Jetson's, enable `CONFIG_CAN_PEAK_USB` or
-`CONFIG_CAN_GS_USB` and rebuild it.
+A `filename` line means the driver is present. `Module ... not found` means the kernel lacks it.
+On a stock Ubuntu kernel, run `sudo apt install linux-modules-extra-$(uname -r)`. On a kernel you
+built yourself or a vendor kernel such as a Jetson's, enable `CONFIG_CAN_PEAK_USB` or
+`CONFIG_CAN_GS_USB` and rebuild the kernel.
 
-The driver itself is a set of ROS 2 packages, so `colcon` builds it.
+The repository consists of the packages below.
 
 | Package | Contents |
 |---|---|
-| [`aidin_aft150_d50_driver`](aidin_aft150_d50_driver/README.md) | Communication layer and the standalone node |
+| [`aidin_aft150_d50_driver`](aidin_aft150_d50_driver/README.md) | Sensor communication library and the standalone node `aft150_d50_node` |
 | [`aidin_aft150_d50_hardware`](aidin_aft150_d50_hardware/README.md) | ros2_control sensor interface |
-| [`aidin_aft150_d50_description`](aidin_aft150_d50_description/README.md) | URDF and ros2_control xacro macros |
+| [`aidin_aft150_d50_description`](aidin_aft150_d50_description/README.md) | Sensor model and ros2_control xacro macros |
 | [`aidin_aft150_d50_bringup`](aidin_aft150_d50_bringup/README.md) | Launch files and parameter files |
 
-All four packages share one version number and are released together.
+## 3. Setting up the CAN interface
 
-## Setting up the CAN interface
-
-Bring the interface up before starting the driver. The setting does not survive a reboot or a
-re-plug, so bring it up again after either. The commands below set the sensor's factory timing,
-CAN FD at 1 Mbit/s nominal and 5 Mbit/s data phase. Replace `can0` with the name that
-`ip -br link show type can` lists for the adapter.
+Bring the interface up with the commands below before starting the driver. Run the same commands
+again after a reboot or a re-plug. Replace `can0` with the name that `ip -br link show type can`
+lists for the adapter.
 
 ```bash
 sudo ip link set can0 down 2>/dev/null || true
@@ -88,264 +98,276 @@ can <FD> state ERROR-ACTIVE (berr-counter tx 0 rx 0)
 
 `<FD>` in this line means the interface carries CAN FD frames.
 
-The driver opens an interface that is already up. It does not configure the link itself, and it
-reports the command to run when the interface is missing or down.
+The sensor and the driver use the CAN IDs below.
 
-## Running the driver
-
-Both launch files read the same parameter file.
-
-```bash
-# Standalone node
-ros2 launch aidin_aft150_d50_bringup aft150_d50.launch.py
-
-# ros2_control, with a broadcaster per sensor
-ros2 launch aidin_aft150_d50_bringup aft150_d50_ros2_control.launch.py
-```
-
-### Launch arguments
-
-| Argument | Accepted by | Default |
+| Frame | `classic` | `fd`, `fd_brs` |
 |---|---|---|
-| `params_file` | both launch files | `config/aft150_d50_params.yaml` |
-| `controllers_file` | `aft150_d50_ros2_control.launch.py` | `config/aft150_d50_controllers.yaml` |
+| Commands from the driver | `0x420` | `0x320` |
+| Force, `int6` | `0x430` | `0x330` |
+| Torque, `int6` | `0x431` | `0x331` |
+| Six axes, `int12_combined` and `float_combined` | — | `0x332` |
 
-Which CAN interface a sensor is on differs between machines, so copy the parameter file and pass
-the copy rather than editing the tracked one. Either launch file accepts it:
+## 4. Bringup
 
-```bash
-ros2 launch aidin_aft150_d50_bringup aft150_d50.launch.py \
-  params_file:=~/my_aft150.yaml
+### 4.1 Parameters
 
-ros2 launch aidin_aft150_d50_bringup aft150_d50_ros2_control.launch.py \
-  params_file:=~/my_aft150.yaml
-```
-
-`ros2 launch aidin_aft150_d50_bringup <launch file> --show-args` lists the arguments and their
-defaults.
-
-## Topics
-
-Both paths publish `geometry_msgs/msg/WrenchStamped`, one message per sample, but not under the
-same name. The standalone node publishes on `~/wrench`, which resolves under its own node name. In
-the ros2_control path the topic belongs to the broadcaster instead, and the launch file gives each
-sensor a broadcaster named after it with `_broadcaster` appended.
-
-| Path | Topic | Published by |
+| Launch file | Parameter file | Section |
 |---|---|---|
-| Standalone node | `/<sensor name>/wrench` | `aft150_d50_node` |
-| ros2_control | `/<sensor name>_broadcaster/wrench` | `force_torque_sensor_broadcaster` |
+| `aft150_d50.launch.py` | `aft150_d50_standalone.yaml` | [4.2 Standalone node](#42-standalone-node) |
+| `aft150_d50_ros2_control.launch.py` | `aft150_d50_ros2_control.yaml` | [4.3 ros2_control](#43-ros2_control) |
+| `aft150_d50_view.launch.py` | `aft150_d50_standalone.yaml` | [4.4 RViz view](#44-rviz-view) |
 
-For the `right_wrist_ft` block that ships in the parameter file, those names are
-`/right_wrist_ft/wrench` and `/right_wrist_ft_broadcaster/wrench`.
+The parameter files are in `config/` of `aidin_aft150_d50_bringup`. The default files set up one
+sensor (`left_wrist_ft`), and `aft150_d50_standalone_dual.yaml` and
+`aft150_d50_ros2_control_dual.yaml` set up two (`left_wrist_ft`, `right_wrist_ft`). To use another
+file, pass it with `params_file`. Every launch file takes this argument, and `--show-args` lists
+its default.
 
-```bash
-ros2 topic echo /right_wrist_ft/wrench
-ros2 topic hz /right_wrist_ft/wrench
-```
-
-`ros2 topic hz` settles at `rate_hz` once the stream is running. The service names are the same on
-both paths, and only the topic differs, because a ros2_control controller publishes under its own
-node name and that name has to differ from the hardware component's.
-
-The standalone node stamps each message with the time the kernel received the frame, on
-`CLOCK_REALTIME`. That timestamp lines up with `rosbag2` and with other sensors.
-
-> [!NOTE]
-> In the ros2_control path, `force_torque_sensor_broadcaster` stamps with the control cycle
-> instead. Humble's broadcaster has no way to carry a sensor timestamp, so use the standalone
-> node when the sample time itself matters.
-
-## Parameters
-
-The parameter file is an ordinary ROS 2 parameter file, so each top-level key is a node name and
-each block configures the sensor that node drives. `config/aft150_d50_params.yaml` ships with two
-blocks, which is what a robot with a sensor on each wrist looks like.
+A parameter file holds one block per sensor. The block's name is the sensor name, and the
+standalone node and `ros2_control` read blocks of the same format.
 
 ```yaml
-right_wrist_ft:
+left_wrist_ft:                # sensor block
   ros__parameters:
     can_interface: can0
     can_mode:      fd_brs
     data_type:     float_combined
     rate_hz:       250
-    set_id_can20:  0x430
-    set_id_canfd:  0x330
-
-left_wrist_ft:
-  ros__parameters:
-    can_interface: can1
-    can_mode:      fd_brs
-    data_type:     float_combined
-    rate_hz:       250
-    set_id_can20:  0x430
-    set_id_canfd:  0x330
 ```
-
-Launching this file starts two nodes, `/right_wrist_ft` and `/left_wrist_ft`. Adding a third
-sensor means adding a third block; see
-[Configuring more than one sensor](#configuring-more-than-one-sensor) for what the blocks share
-and what they must not.
 
 | Parameter | Type | Default | Description |
 |---|---|---|---|
-| `can_interface` | `string` | `can0` | Name of the SocketCAN interface to open, as `ip link` lists it. The interface must already be up |
-| `can_mode` | `string` | `fd_brs` | Frame format the driver sends and expects: `classic`, `fd` or `fd_brs`. `fd_brs` adds the bitrate switch, which is what reaches 1 kHz |
-| `data_type` | `string` | `float_combined` | What the sensor transmits. One of the three values in the table below |
-| `rate_hz` | `int` | `250` | How often the sensor transmits a sample, up to 1000 Hz: `100`, `250`, `500` or `1000` |
-| `set_id_can20` | `int` | `0x430` | CAN 2.0 ID the sensor transmits on, `0x000`–`0x7FF`. See [Changing the transmit ID](#changing-the-transmit-id) |
-| `set_id_canfd` | `int` | `0x330` | CAN FD ID the sensor transmits on, `0x000`–`0x7FF` |
-| `frame_id` | `string` | `<node name>_link` | `header.frame_id` of the published wrench. Set it to the URDF link the sensor is mounted on |
+| `can_interface` | `string` | `can0` | Name of the CAN interface the sensor is on, brought up as in [3. Setting up the CAN interface](#3-setting-up-the-can-interface) |
+| `can_mode` | `string` | `fd_brs` | Frame format on the bus. One of the values below |
+| `data_type` | `string` | `float_combined` | Format the sensor sends a sample in. One of the values below |
+| `rate_hz` | `int` | `250` | How often the sensor sends a sample, in Hz. The sensor supports `100`, `250`, `500` and `1000` |
+| `frame_id` | `string` | `<sensor_name>_link` | `header.frame_id` of the wrench message the standalone node publishes. Under `ros2_control` the `frame_id` of the broadcaster block applies |
 
-Every parameter is read once at startup and none can be changed while the driver runs. To change a
-setting, edit the parameter file and launch again.
+`can_mode` takes one of these values.
+
+- `classic`: classic CAN 2.0. Its frames hold only the `int6` data type.
+- `fd`: CAN FD.
+- `fd_brs`: CAN FD with the bitrate switch, which sends the data at 5 Mbit/s. A rate of 1000 Hz
+  needs it.
+
+`data_type` takes one of these values. Whichever it is, the driver publishes the force in newtons
+and the torque in newton-metres.
+
+- `int6`: integers. Works with every `can_mode`.
+- `int12_combined`: integers. Needs `fd` or `fd_brs`.
+- `float_combined`: 32-bit floats. Needs `fd` or `fd_brs`.
+
+A `rate_hz` the sensor does not support runs at the highest supported rate that does not exceed
+it. For example, `200` runs at 100 Hz. Below `100`, the driver does not start.
 
 > [!IMPORTANT]
-> The parameters are declared read-only on purpose. Changing the mode, the data type or the rate
-> makes the sensor stop transmitting for roughly 100 ms while the driver restores the stream, and
-> in the `ros2_control` path `read()` hands out the last sample for that whole time. A controller
-> holding a force target would act on a stale reading for a hundred cycles, with nothing in the
-> graph to show it. `ros2 param set` on any of them is refused.
+> Give each sensor its own CAN interface. The driver does not open an interface that another sensor
+> already holds.
 
-`ros2 param get` still reports what the driver is running with.
-
-### Data types
-
-| Value | Frames per sample | Needs CAN FD | Description |
-|---|---|---|---|
-| `int6` | 2 | no | Force and torque arrive in separate frames as scaled integers |
-| `int12_combined` | 1 | yes | All six axes in one frame as scaled integers |
-| `float_combined` | 1 | yes | All six axes in one frame as 32-bit floats |
-
-The two combined types put all six axes in one frame, which does not fit a classic CAN frame. The
-driver rejects them unless `can_mode` is `fd` or `fd_brs`.
-
-An `int6` sample needs both frames, so the driver discards a torque frame whose force frame was
-lost rather than pairing it with an older one.
-
-### Changing the transmit ID
-
-`set_id_can20` and `set_id_canfd` are the ID the sensor should use, not a report of what it uses
-now. At startup the driver asks the sensor for its current IDs and sends a change only when they
-differ. The sensor keeps the value in non-volatile memory, so it survives a power cycle, and
-launching again with an unchanged file writes nothing to the sensor.
-
-A sensor leaves the factory transmitting on `0x430` for CAN 2.0 and `0x330` for CAN FD, which are
-the defaults of `set_id_can20` and `set_id_canfd`. The default file therefore writes nothing to a
-new sensor, and `~/restore_defaults` returns the sensor to the same two IDs.
-
-When the sensor does not adopt the new ID, the driver logs a warning naming both IDs and carries
-on reading with the one the sensor reported, rather than refusing to start.
-
-> [!WARNING]
-> The base ID occupies three consecutive addresses, and the driver checks only that the value is
-> in range. A value that overlaps the other bus, or that collides with a command address, makes
-> the sensor unreachable. Call `~/restore_defaults` to recover.
-
-Use `~/confirm_id` to find out which IDs the sensor is actually using.
-
-## Services
-
-The driver provides three services, all `std_srvs/srv/Trigger`. Anything that carries a value is
-a parameter instead, so there are no custom service definitions.
-
-| Service | Effect |
-|---|---|
-| `~/set_bias` | Takes the load on the sensor at this moment as zero |
-| `~/confirm_id` | Asks the sensor for its transmit IDs and returns them in the response |
-| `~/restore_defaults` | Returns the sensor to its factory settings, including its transmit IDs |
+### 4.2 Standalone node
 
 ```bash
-ros2 service call /right_wrist_ft/set_bias std_srvs/srv/Trigger
+ros2 launch aidin_aft150_d50_bringup aft150_d50.launch.py
 ```
 
-> [!WARNING]
-> The driver never sends `~/set_bias` on its own. Whatever rests on the sensor at startup would
-> otherwise become its zero, which on a robot is a safety problem. Call it only when you know the
-> sensor is unloaded.
+By default it reads `aft150_d50_standalone.yaml`.
 
-`~/restore_defaults` runs as soon as you call it. There is no confirmation step.
+The launch file starts one node per sensor block in the parameter file, named after the block. The
+default file starts `/left_wrist_ft`, and `aft150_d50_standalone_dual.yaml` starts `/left_wrist_ft`
+and `/right_wrist_ft`. To add a sensor, write one more block in the parameter file.
 
-## Configuring more than one sensor
+Each sensor runs in its own process, so only the node of a sensor whose interface is missing stops,
+and the other sensors carry on.
 
-There is no fixed left and right and no limit on the number of sensors. Name each block after the
-place the sensor is mounted, and give each one its own CAN interface.
+### 4.3 ros2_control
 
-Each node takes its name from its block, so its topic, its parameters and its services all carry
-that name and address one sensor while leaving the others alone. The three blocks below publish
-`/right_wrist_ft/wrench`, `/left_wrist_ft/wrench` and `/tool_flange_ft/wrench`.
+```bash
+ros2 launch aidin_aft150_d50_bringup aft150_d50_ros2_control.launch.py
+```
 
-Settings that are the same everywhere can go in a `/**:` block, which applies to every node in the
-file. Only what differs then stays in the individual blocks.
+By default it reads `aft150_d50_ros2_control.yaml`.
+
+The launch file starts `controller_manager` and `robot_state_publisher`, and runs one hardware
+component and one `force_torque_sensor_broadcaster` for each sensor. The parameter file holds one
+broadcaster block and one sensor block for each sensor.
 
 ```yaml
-/**:
+controller_manager:           # controller_manager block
   ros__parameters:
-    can_mode:  fd_brs
-    data_type: float_combined
-    rate_hz:   250
+    update_rate: 1000
 
-right_wrist_ft:
+left_wrist_ft_broadcaster:    # broadcaster block
+  ros__parameters:
+    type:        force_torque_sensor_broadcaster/ForceTorqueSensorBroadcaster
+    sensor_name: left_wrist_ft
+    frame_id:    left_wrist_ft_link
+
+left_wrist_ft:                # sensor block
   ros__parameters:
     can_interface: can0
-
-left_wrist_ft:
-  ros__parameters:
-    can_interface: can1
-
-tool_flange_ft:
-  ros__parameters:
-    can_interface: can2
-```
-
-> [!IMPORTANT]
-> Two sensors must not share a CAN interface. One process drives one sensor, and the driver
-> refuses to open an interface another instance already holds rather than letting the two
-> interleave commands on the same bus.
-
-## Sharing a channel with the AIDIN Hand Gen2
-
-The sensor uses the same bit timing as the AIDIN Hand Gen2, so it can share a channel of one CAN
-adapter with the robot hand. Set `can_interface` to the robot hand's interface and keep `can_mode`
-at `fd_brs`. The robot hand communicates in CAN FD with the bitrate switch, and `fd_brs` sends the
-sensor's data in the same 5 Mbit/s data phase, which keeps its frames short on a bus the robot
-hand already uses.
-
-```yaml
-right_wrist_ft:
-  ros__parameters:
-    can_interface: can0   # the interface the right hand is on
     can_mode:      fd_brs
 ```
 
-The default transmit IDs stay clear of the robot hand. Its IDs lie in `0x111`–`0x138` and
-`0x211`–`0x238`, and the sensor transmits on each of its two IDs and the two after it, which is
-`0x430`–`0x432` and `0x330`–`0x332` by default. If you change `set_id_can20` or `set_id_canfd`,
-keep both ranges outside the robot hand's.
+A broadcaster block holds the `type`, the name of the sensor to read as `sensor_name`, and the
+`frame_id` of the wrench message. The launch file spawns every block with a `type` as a
+broadcaster, and reads every other block except `controller_manager` as a sensor. A sensor block
+has the format of [4.1 Parameters](#41-parameters). To add a sensor, write one more broadcaster
+block and one more sensor block.
 
-Two sensors still cannot share an interface. That rule applies between sensors only, so the robot
-hand can share one with a sensor.
+> [!IMPORTANT]
+> `controller_manager` runs every sensor in one process. A sensor whose interface is missing at
+> startup stops the whole process, and the other sensors with it.
 
-## Troubleshooting
+### 4.4 RViz view
 
-The driver reports the command to run whenever the interface is at fault.
+```bash
+ros2 launch aidin_aft150_d50_bringup aft150_d50_view.launch.py
+```
+
+The launch file shows the sensors in the parameter file in RViz. `left_wrist_ft` sits to the left
+of the `world` origin, `right_wrist_ft` to the right, and a sensor under any other name on the
+origin. With [4.2 Standalone node](#42-standalone-node) running, the force on `left_wrist_ft` and
+`right_wrist_ft` shows as arrows too.
+
+## 5. Topics
+
+The standalone node and `ros2_control` both publish one `geometry_msgs/msg/WrenchStamped` message
+per sample, on the topics below.
+
+| Bringup | Topic | Published by |
+|---|---|---|
+| [4.2 Standalone node](#42-standalone-node) | `/<sensor_name>/wrench` | `aft150_d50_node` |
+| [4.3 ros2_control](#43-ros2_control) | `/<sensor_name>_broadcaster/wrench` | `force_torque_sensor_broadcaster` |
+
+For `left_wrist_ft`, those names are `/left_wrist_ft/wrench` and
+`/left_wrist_ft_broadcaster/wrench`.
+
+```bash
+ros2 topic echo /left_wrist_ft/wrench
+```
+
+The standalone node writes the time the kernel received the frame, on `CLOCK_REALTIME`, into each
+message's `header.stamp`.
+
+> [!NOTE]
+> Under `ros2_control`, the broadcaster stamps each message with the time of the control cycle that
+> published it. Use the standalone node when the sample time matters.
+
+## 6. Services
+
+The standalone node and `ros2_control` provide the same two services, both of type
+`std_srvs/srv/Trigger`.
+
+| Service | Effect |
+|---|---|
+| `~/set_bias` | Takes the sensor's present reading as zero |
+| `~/restore_defaults` | Resets the sensor's settings to the factory defaults |
+
+To take the present reading of `left_wrist_ft` as zero:
+
+```bash
+ros2 service call /left_wrist_ft/set_bias std_srvs/srv/Trigger
+```
+
+To reset the settings of `left_wrist_ft`:
+
+```bash
+ros2 service call /left_wrist_ft/restore_defaults std_srvs/srv/Trigger
+```
+
+## 7. Integration
+
+When you add the sensor to an existing `ros2_control` system, the system's `controller_manager`
+reads the sensor as well. You then use none of the launch files of [4. Bringup](#4-bringup).
+
+### 7.1 Adding the sensor to a ros2_control system
+
+In the system's description xacro, take the path of the sensor's parameter file as an xacro argument
+and call the two macros of `aidin_aft150_d50_description`. `aft150_d50_unit` writes the sensor
+model, and `aft150_d50_ros2_control` writes the `<ros2_control>` block from the sensor block in the
+parameter file. Write the fixed joint `<name>_base_joint` that mounts the sensor yourself.
+
+```xml
+<!-- the system's description xacro -->
+<xacro:arg name="aft150_d50_params_file"
+           default="$(find aidin_aft150_d50_bringup)/config/aft150_d50_ros2_control.yaml"/>
+
+<xacro:include filename="$(find aidin_aft150_d50_description)/xacro/aft150_d50_unit.urdf.xacro"/>
+<xacro:include filename="$(find aidin_aft150_d50_description)/ros2_control/aft150_d50.ros2_control.xacro"/>
+
+<xacro:aft150_d50_unit name="left_wrist_ft"/>
+<joint name="left_wrist_ft_base_joint" type="fixed">
+  <parent link="your_left_arm_link"/>
+  <child link="left_wrist_ft_base_link"/>
+  <origin xyz="0 0 0" rpy="0 0 0"/>
+</joint>
+
+<xacro:aft150_d50_ros2_control name="left_wrist_ft"
+                               params_file="$(arg aft150_d50_params_file)"/>
+```
+
+In the system's launch file, pass the parameter file's path as that argument. Without it, the
+description reads `aft150_d50_ros2_control.yaml` of `aidin_aft150_d50_bringup`.
+
+```python
+# the system's launch file
+robot_description = ParameterValue(
+    Command([
+        'xacro ', xacro_file,
+        ' aft150_d50_params_file:=',
+        PathJoinSubstitution([FindPackageShare('my_bringup'), 'config', 'aft150_d50.yaml']),
+    ]),
+    value_type=str,
+)
+```
+
+`force_torque_sensor_broadcaster` publishes the wrench message on
+`/<sensor_name>_broadcaster/wrench`. Spawn the broadcaster the same way as the system's other
+controllers. Its block is the same as in [4.3 ros2_control](#43-ros2_control).
+
+> [!IMPORTANT]
+> Do not start `aft150_d50_ros2_control.launch.py` alongside the system. That launch file runs a
+> separate `controller_manager` and `robot_state_publisher`, so it cannot open the CAN interface
+> the system already holds, and `/robot_description` and TF are published twice.
+
+### 7.2 Sharing a CAN channel with the AIDIN Hand Gen2
+
+The sensor uses the same CAN setup as the AIDIN Hand Gen2
+([3. Setting up the CAN interface](#3-setting-up-the-can-interface)), so it can share one channel of
+an adapter with the AIDIN Hand Gen2. Set `can_interface` to the interface the AIDIN Hand Gen2 is
+on.
+
+> [!IMPORTANT]
+> A shared channel needs a CAN FD adapter and `can_mode: fd_brs`, because the AIDIN Hand Gen2
+> communicates in CAN FD with the bitrate switch.
+
+```yaml
+left_wrist_ft:                # sensor block
+  ros__parameters:
+    can_interface: can0       # the interface the left AIDIN Hand Gen2 is on
+    can_mode:      fd_brs
+```
+
+## 8. Troubleshooting
+
+When the interface is at fault, the driver prints the command to run in its message.
 
 | Message | Cause | What to do |
 |---|---|---|
-| `there is no interface called can0` | The adapter is not plugged in, or its kernel driver is missing | `ip -br link show type can`, then check the driver as [Installation](#installation) describes |
-| `can0 is down` | The interface exists but is not up | Run the commands in [Setting up the CAN interface](#setting-up-the-can-interface) |
+| `there is no interface called can0` | The adapter is not plugged in, or its kernel driver is missing | `ip -br link show type can`, then check the driver as [2. Installation](#2-installation) describes |
+| `can0 is down` | The interface exists but is not up | Run the commands in [3. Setting up the CAN interface](#3-setting-up-the-can-interface) |
 | `can0 is not set up for CAN FD (MTU 16)` | The interface is up in classic mode while `can_mode` asks for FD | Run the `ip link` command the message prints, or set `can_mode` to `classic` |
 | `another instance already holds can0` | A second driver is running on the same interface | Stop the first one, or give this sensor its own interface |
 | `this data type puts six axes in one frame and needs CAN FD` | A combined `data_type` with `can_mode: classic` | Use the `int6` data type, or switch `can_mode` to `fd_brs` |
 | `parameter 'rate_hz' cannot be set because it is read-only` | A `ros2 param set` on a parameter that is read at startup | Edit the parameter file and launch again |
-| `the sensor reports 2.0=... but the parameters ask for ...` | The sensor did not adopt the transmit ID the file asks for | Check that `set_id_can20` and `set_id_canfd` are what you meant. The driver keeps reading on the reported IDs |
+| `the sensor reports 2.0=... instead of the defaults ...` | The sensor did not move to its default transmit IDs | Call `~/restore_defaults` and launch again. The driver keeps reading on the IDs the sensor reported |
 
-If the node starts but no messages arrive, check that the sensor's transmit IDs match what the
-driver expects:
+If the node starts but no messages arrive, start the node again with the command below running.
+The sensor sends data only after the driver has sent its setup commands.
 
 ```bash
-ros2 service call /right_wrist_ft/confirm_id std_srvs/srv/Trigger
+candump can0
 ```
 
-The response reports the IDs the sensor answered with. When the sensor does not answer at all,
-`candump can0` shows whether it is transmitting.
+If only the driver's commands (`0x320` or `0x420`) appear and no sensor data (`0x330`–`0x332` or
+`0x430`–`0x431`) follows, the sensor is not powered, or not connected to this interface.

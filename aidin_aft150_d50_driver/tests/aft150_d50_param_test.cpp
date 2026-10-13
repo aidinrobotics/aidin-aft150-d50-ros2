@@ -70,25 +70,15 @@ void test_rate_hz()
   CHECK(!is_valid_rate_hz(2000));
 
   CHECK(rate_hz_values().size() == 4);
-}
 
-void test_set_id_range()
-{
-  // The range is the only thing checked. A value that makes the two buses overlap, or one that
-  // collides with a command ID, is accepted here and lands in the sensor's NVM. Restoring the
-  // defaults is the way back.
-  CHECK(is_valid_set_id(0x000));
-  CHECK(is_valid_set_id(0x230));
-  CHECK(is_valid_set_id(0x330));
-  CHECK(is_valid_set_id(0x7FF));
-
-  CHECK(!is_valid_set_id(-1));
-  CHECK(!is_valid_set_id(0x800));
-  CHECK(!is_valid_set_id(0x10000));
-
-  // Overlapping windows and command-ID collisions pass, on purpose.
-  CHECK(is_valid_set_id(0x420));
-  CHECK(is_valid_set_id(0x331));
+  // A rate the sensor does not offer runs at the highest one that does not exceed it.
+  CHECK(supported_rate_hz(250) == 250);
+  CHECK(supported_rate_hz(200) == 100);
+  CHECK(supported_rate_hz(333) == 250);
+  CHECK(supported_rate_hz(999) == 500);
+  CHECK(supported_rate_hz(2000) == 1000);
+  CHECK(supported_rate_hz(99) == 0);
+  CHECK(supported_rate_hz(0) == 0);
 }
 
 void test_defaults_are_consistent()
@@ -146,24 +136,16 @@ void test_validate_reports_each_bad_field()
   }
   {
     Settings s;
-    s.rate_hz = 333;
+    s.rate_hz = 50;
     std::string reason;
     CHECK(!validate(s, reason));
     CHECK(reason.find("rate_hz") != std::string::npos);
   }
   {
     Settings s;
-    s.set_id_can20 = 0x800;
+    s.rate_hz = 333;
     std::string reason;
-    CHECK(!validate(s, reason));
-    CHECK(reason.find("set_id_can20") != std::string::npos);
-  }
-  {
-    Settings s;
-    s.set_id_canfd = -1;
-    std::string reason;
-    CHECK(!validate(s, reason));
-    CHECK(reason.find("set_id_canfd") != std::string::npos);
+    CHECK(validate(s, reason));
   }
   {
     Settings s;
@@ -184,8 +166,7 @@ void test_parameters_are_read_only()
   Settings s;
   declare_settings(node.get(), s);
 
-  for (const char * name : {"can_interface", "can_mode", "data_type", "rate_hz",
-      "set_id_can20", "set_id_canfd", "frame_id"})
+  for (const char * name : {"can_interface", "can_mode", "data_type", "rate_hz", "frame_id"})
   {
     CHECK(node->describe_parameter(name).read_only);
   }
@@ -203,9 +184,6 @@ void test_parameters_are_read_only()
 
   CHECK(refuses(rclcpp::Parameter("rate_hz", 500)));
   CHECK(node->get_parameter("rate_hz").as_int() == s.rate_hz);
-
-  CHECK(refuses(rclcpp::Parameter("set_id_can20", 0x341)));
-  CHECK(node->get_parameter("set_id_can20").as_int() == s.set_id_can20);
 
   CHECK(refuses(rclcpp::Parameter("can_mode", std::string("classic"))));
   CHECK(node->get_parameter("can_mode").as_string() == s.can_mode);
@@ -233,7 +211,6 @@ int main(int argc, char ** argv)
   test_can_mode();
   test_data_type();
   test_rate_hz();
-  test_set_id_range();
   test_defaults_are_consistent();
   test_combined_types_need_fd();
   test_validate_reports_each_bad_field();
