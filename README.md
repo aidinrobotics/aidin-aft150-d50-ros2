@@ -45,7 +45,7 @@ sensor interface.
 
 ```bash
 sudo apt install can-utils
-colcon build --packages-up-to aidin_aft150_d50_bringup
+colcon build --symlink-install --packages-up-to aidin_aft150_d50_bringup
 ```
 
 `can-utils` provides `candump`, which [8. Troubleshooting](#8-troubleshooting) uses.

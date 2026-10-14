@@ -44,7 +44,7 @@ AIDIN AFT150-D50 6축 힘·토크 센서를 SocketCAN으로 읽는 ROS 2 driver�
 
 ```bash
 sudo apt install can-utils
-colcon build --packages-up-to aidin_aft150_d50_bringup
+colcon build --symlink-install --packages-up-to aidin_aft150_d50_bringup
 ```
 
 `can-utils`는 [8. Troubleshooting](#8-troubleshooting)에서 사용하는 `candump`를 제공합니다.
